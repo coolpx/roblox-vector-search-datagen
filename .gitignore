@@ -13,3 +13,6 @@ Thumbs.db
 
 # Misc
 *.tsbuildinfo
+
+# Generated data
+data/
