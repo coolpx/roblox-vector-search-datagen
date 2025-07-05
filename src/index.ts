@@ -128,6 +128,142 @@ const commands: Record<string, () => Promise<void>> = {
             `Wrote ${uniqueGames.length} games to ${currentGameListPath} (${uniqueGames.length - existingGames.length} new games added)`
         );
     },
+    async gatherGamesRolimons() {
+        console.log('Gathering games from Rolimons...');
+
+        // download games page from rolimons
+        const rolimonsResponse = await fetch('https://rolimons.com/games');
+        if (!rolimonsResponse.ok) {
+            throw new Error(`Failed to fetch Rolimons games page: ${rolimonsResponse.statusText}`);
+        }
+        const rolimonsHtml = await rolimonsResponse.text();
+
+        // get games list from html
+        const gamesList: { [placeId: number]: { name: string; icon_url: string } } = JSON.parse(
+            rolimonsHtml
+                .split('var games = ')[1]
+                .split('document.addEventListener')[0]
+                .trim()
+                .slice(0, -1)
+        );
+        if (!gamesList) {
+            throw new Error('Failed to parse games list from Rolimons HTML');
+        }
+
+        console.log(
+            `Found ${Object.keys(gamesList).length} games on Rolimons, gathering universe IDs...`
+        );
+
+        // get universe IDs from place IDs
+        const games: Game[] = [];
+        let i = 0;
+        const total = Object.keys(gamesList).length;
+        const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+        for (const [placeId, gameData] of Object.entries(gamesList)) {
+            console.log(`[${i++}/${total}] Gathering universe ID for place ID ${placeId}`);
+
+            let retry = false;
+            let universeIdResponse;
+            do {
+                retry = false;
+                try {
+                    universeIdResponse = await fetch(
+                        `https://apis.roblox.com/universes/v1/places/${placeId}/universe`
+                    );
+                    if (universeIdResponse.status === 429) {
+                        console.warn(
+                            `[${i}/${total}] Universe ID API rate limited (429) for place ID ${placeId}. Waiting 30 seconds before retrying...`
+                        );
+                        await wait(30000);
+                        retry = true;
+                    }
+                } catch (e) {
+                    console.error(
+                        `[${i}/${total}] Failed to fetch universe ID for place ID ${placeId}:`,
+                        e
+                    );
+                    break;
+                }
+            } while (retry);
+
+            if (!universeIdResponse || !universeIdResponse.ok) {
+                console.warn(
+                    `Failed to fetch universe ID for place ID ${placeId}: ${universeIdResponse?.statusText || 'Network error'}`
+                );
+                continue;
+            }
+
+            const universeData = await universeIdResponse.json();
+            const universeId = universeData.universeId;
+            if (universeId) {
+                games.push({
+                    universeId,
+                    rootPlaceId: parseInt(placeId),
+                    name: gameData.name
+                });
+            } else {
+                console.warn(`No universe ID found for place ID ${placeId}`);
+            }
+        }
+
+        // merge with existing games to preserve attributes
+        console.log(`Merging ${games.length} games with existing data`);
+
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        fs.mkdirSync(path.dirname(gamesPath), { recursive: true });
+
+        // Load existing games if the file exists
+        let existingGames: Game[] = [];
+        if (fs.existsSync(gamesPath)) {
+            existingGames = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+            console.log(`Found ${existingGames.length} existing games`);
+        }
+
+        // Create a map of existing games for efficient lookup
+        const existingGameMap = new Map(existingGames.map(g => [g.universeId, g]));
+
+        // Merge new games with existing ones, preserving existing attributes
+        const mergedGames: Game[] = [];
+        const newGamesSet = new Set(games.map(g => g.universeId));
+
+        // Add all existing games, updating basic info if they're still in the new list
+        for (const existingGame of existingGames) {
+            if (newGamesSet.has(existingGame.universeId)) {
+                // Find the corresponding new game data
+                const newGame = games.find(g => g.universeId === existingGame.universeId);
+                if (newGame) {
+                    // Merge: keep existing attributes but update basic info
+                    mergedGames.push({
+                        ...existingGame,
+                        name: newGame.name,
+                        rootPlaceId: newGame.rootPlaceId
+                    });
+                }
+            } else {
+                // Game no longer appears in new list, but keep it anyway
+                mergedGames.push(existingGame);
+            }
+        }
+
+        // Add completely new games
+        for (const newGame of games) {
+            if (!existingGameMap.has(newGame.universeId)) {
+                mergedGames.push(newGame);
+            }
+        }
+
+        // Remove duplicates and sort by universeId for consistency
+        const uniqueGames = Array.from(
+            new Map(mergedGames.map(g => [g.universeId, g])).values()
+        ).sort((a, b) => a.universeId - b.universeId);
+
+        fs.writeFileSync(gamesPath, JSON.stringify(uniqueGames, null, 4));
+        console.log(
+            `Wrote ${uniqueGames.length} games to ${gamesPath} (${uniqueGames.length - existingGames.length} new games added)`
+        );
+        console.log('Gathering games from Rolimons completed.');
+    },
     async downloadImages() {
         // Download icon and primary thumbnail for each game
         const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
@@ -660,7 +796,7 @@ const commands: Record<string, () => Promise<void>> = {
         );
 
         // get embeddings for the specified game
-        const universeId = parseInt(game, 10);
+        const universeId = parseInt(game);
         if (!(universeId in embeddings)) {
             console.error(`No embeddings found for game with universeId ${universeId}.`);
             return;
