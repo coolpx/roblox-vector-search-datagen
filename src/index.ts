@@ -14,6 +14,7 @@ type Game = {
     rootPlaceId: number;
     name: string;
     description?: string | null;
+    gameplayDescription?: string | null;
 };
 
 type GameSort = {
@@ -23,6 +24,7 @@ type GameSort = {
 
 // constants
 const descriptionModel = 'google/gemma-3-4b';
+const embeddingModel = 'CompendiumLabs/bge-large-en-v1.5-gguf/bge-large-en-v1.5-q8_0.gguf';
 
 const client = new LMStudioClient();
 
@@ -70,29 +72,61 @@ const commands: Record<string, () => Promise<void>> = {
             apiUrl.searchParams.set('sortsPageToken', sortsData.nextSortsPageToken);
         }
 
-        // dump to file
-        console.log(`Writing ${games.length} games to file`);
+        // merge with existing games to preserve attributes
+        console.log(`Merging ${games.length} games with existing data`);
 
-        // merge with existing games
         const currentGameListPath = path.join(process.cwd(), 'data', 'games', 'games.json');
-        let currentGameList: Game[] = [];
-        if (fs.existsSync(currentGameListPath)) {
-            const fileContent = fs.readFileSync(currentGameListPath, 'utf-8').trim();
-            if (fileContent.length > 0) {
-                currentGameList = JSON.parse(fileContent) as Game[];
-            }
-        }
-        const existingGameIds = new Set(currentGameList.map(game => game.universeId));
-        const newGames = games.filter(game => !existingGameIds.has(game.universeId));
-        const mergedGames = currentGameList.concat(newGames);
-
-        // ensure output directory exists
         fs.mkdirSync(path.dirname(currentGameListPath), { recursive: true });
 
-        // write merged games to file
-        fs.writeFileSync(currentGameListPath, JSON.stringify(mergedGames, null));
+        // Load existing games if the file exists
+        let existingGames: Game[] = [];
+        if (fs.existsSync(currentGameListPath)) {
+            existingGames = JSON.parse(fs.readFileSync(currentGameListPath, 'utf-8'));
+            console.log(`Found ${existingGames.length} existing games`);
+        }
 
-        console.log(`Wrote ${newGames.length} new games to ${currentGameListPath}`);
+        // Create a map of existing games for efficient lookup
+        const existingGameMap = new Map(existingGames.map(g => [g.universeId, g]));
+
+        // Merge new games with existing ones, preserving existing attributes
+        const mergedGames: Game[] = [];
+        const newGamesSet = new Set(games.map(g => g.universeId));
+
+        // Add all existing games, updating basic info if they're still in the new list
+        for (const existingGame of existingGames) {
+            if (newGamesSet.has(existingGame.universeId)) {
+                // Find the corresponding new game data
+                const newGame = games.find(g => g.universeId === existingGame.universeId);
+                if (newGame) {
+                    // Merge: keep existing attributes but update basic info
+                    mergedGames.push({
+                        ...existingGame,
+                        name: newGame.name,
+                        rootPlaceId: newGame.rootPlaceId
+                    });
+                }
+            } else {
+                // Game no longer appears in new list, but keep it anyway
+                mergedGames.push(existingGame);
+            }
+        }
+
+        // Add completely new games
+        for (const newGame of games) {
+            if (!existingGameMap.has(newGame.universeId)) {
+                mergedGames.push(newGame);
+            }
+        }
+
+        // Remove duplicates and sort by universeId for consistency
+        const uniqueGames = Array.from(
+            new Map(mergedGames.map(g => [g.universeId, g])).values()
+        ).sort((a, b) => a.universeId - b.universeId);
+
+        fs.writeFileSync(currentGameListPath, JSON.stringify(uniqueGames, null, 4));
+        console.log(
+            `Wrote ${uniqueGames.length} games to ${currentGameListPath} (${uniqueGames.length - existingGames.length} new games added)`
+        );
     },
     async downloadImages() {
         // Download icon and primary thumbnail for each game
@@ -315,6 +349,19 @@ const commands: Record<string, () => Promise<void>> = {
             return;
         }
         let games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+        // summary of inclusion/exclusion breakdown
+        const totalGames = games.length;
+        const excludedNoDescription = games.filter(
+            g =>
+                !g.description || (typeof g.description === 'string' && g.description.trim() === '')
+        ).length;
+        const excludedHasGameplayDesc = games.filter(
+            g => g.gameplayDescription && g.gameplayDescription.trim() !== ''
+        ).length;
+        console.log(`Total games: ${totalGames}`);
+        console.log(`Excluded (no description): ${excludedNoDescription}`);
+        console.log(`Excluded (already have gameplay descriptions): ${excludedHasGameplayDesc}`);
+
         const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
         const batchSize = 50;
         // Only batch games that do not already have a description
@@ -377,8 +424,304 @@ const commands: Record<string, () => Promise<void>> = {
             }
         }
         // write updated games to file
-        fs.writeFileSync(gamesPath, JSON.stringify(Array.from(gameMap.values()), null));
+        fs.writeFileSync(gamesPath, JSON.stringify(Array.from(gameMap.values()), null, 4));
         console.log(`Updated descriptions in ${gamesPath}`);
+    },
+    async generateGameplayDescriptions() {
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        if (!fs.existsSync(gamesPath)) {
+            console.error('games.json not found. Run gatherGames first.');
+            return;
+        }
+
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+        // summary of inclusion/exclusion breakdown
+        const totalGames = games.length;
+        const excludedNoDescription = games.filter(
+            g =>
+                !g.description || (typeof g.description === 'string' && g.description.trim() === '')
+        ).length;
+        const excludedHasGameplayDesc = games.filter(
+            g => g.gameplayDescription && g.gameplayDescription.trim() !== ''
+        ).length;
+        console.log(`Total games: ${totalGames}`);
+        console.log(`Excluded (no description): ${excludedNoDescription}`);
+        console.log(`Excluded (already have gameplay descriptions): ${excludedHasGameplayDesc}`);
+
+        // Only batch games that do not already have a description
+        const gamesMissingGameplayDescriptions = games.filter(
+            game =>
+                game.description &&
+                (!game.gameplayDescription || game.gameplayDescription.trim() === '')
+        );
+        console.log(`Games to generate: ${gamesMissingGameplayDescriptions.length}`);
+
+        if (gamesMissingGameplayDescriptions.length === 0) {
+            console.log('No games are missing gameplay descriptions.');
+            return;
+        }
+
+        console.log(
+            `Generating gameplay descriptions for ${gamesMissingGameplayDescriptions.length} games...`
+        );
+
+        const model = await client.llm.model(descriptionModel);
+        const systemPrompt = await loadSystemPrompt('gameplayAnalysis');
+
+        for (let i = 0; i < gamesMissingGameplayDescriptions.length; i++) {
+            const game = gamesMissingGameplayDescriptions[i];
+            console.log(
+                `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Generating gameplay description for game: ${game.name}`
+            );
+            try {
+                const iconPath = await client.files.prepareImage(
+                    path.join(
+                        process.cwd(),
+                        'data',
+                        'games',
+                        'images',
+                        String(game.universeId),
+                        'icon.webp'
+                    )
+                );
+                const thumbnailPath = await client.files.prepareImage(
+                    path.join(
+                        process.cwd(),
+                        'data',
+                        'games',
+                        'images',
+                        String(game.universeId),
+                        'thumbnail.webp'
+                    )
+                );
+
+                const response = await model.respond([
+                    {
+                        role: 'system',
+                        content: systemPrompt
+                    },
+                    {
+                        role: 'user',
+                        content: `**Game Title**: ${game.name}\n\n**Game Description**: ${game.description}`,
+                        images: [iconPath, thumbnailPath]
+                    }
+                ]);
+
+                game.gameplayDescription = response.content;
+                console.log(
+                    `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Generated gameplay description for game: ${game.name}`
+                );
+            } catch (error) {
+                console.error(
+                    `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Failed to generate gameplay description for game: ${game.name}`,
+                    error
+                );
+            }
+            if ((i + 1) % 10 === 0) {
+                fs.writeFileSync(gamesPath, JSON.stringify(games, null, 4));
+                console.log(`Saved progress after ${i + 1} gameplay descriptions to ${gamesPath}`);
+            }
+        }
+        // final save
+        fs.writeFileSync(gamesPath, JSON.stringify(games, null, 4));
+        console.log(
+            `Updated gameplay descriptions for ${gamesMissingGameplayDescriptions.length} games in ${gamesPath}`
+        );
+    },
+    async countGames() {
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        if (!fs.existsSync(gamesPath)) {
+            console.error('games.json not found. Run gatherGames first.');
+            return;
+        }
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+        console.log(`Total games: ${games.length}`);
+        const withDescriptions = games.filter(
+            g => g.description && g.description.trim() !== ''
+        ).length;
+        console.log(`Games with descriptions: ${withDescriptions}`);
+        const withGameplayDescriptions = games.filter(
+            g => g.gameplayDescription && g.gameplayDescription.trim() !== ''
+        ).length;
+        console.log(`Games with gameplay descriptions: ${withGameplayDescriptions}`);
+    },
+    async generateEmbeddings() {
+        // load embedding model
+        const model = await client.embedding.model(embeddingModel);
+
+        // load games
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        if (!fs.existsSync(gamesPath)) {
+            console.error('games.json not found. Run gatherGames first.');
+            return;
+        }
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+        console.log(`Total games: ${games.length}`);
+
+        // load existing embeddings
+        const embeddingsPath = path.join(process.cwd(), 'data', 'games', 'embeddings.json');
+        let existingEmbeddings: Record<number, number[]> = {};
+        if (fs.existsSync(embeddingsPath)) {
+            existingEmbeddings = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
+            console.log(`Loaded ${Object.keys(existingEmbeddings).length} existing embeddings`);
+        }
+
+        // filter games that need embeddings
+        const gamesNeedingEmbeddings = games.filter(
+            game =>
+                !(game.universeId in existingEmbeddings) ||
+                !existingEmbeddings[game.universeId] ||
+                existingEmbeddings[game.universeId].length === 0
+        );
+
+        console.log(`Games needing embeddings: ${gamesNeedingEmbeddings.length}`);
+        if (gamesNeedingEmbeddings.length === 0) {
+            console.log('All games already have embeddings.');
+            return;
+        }
+
+        // filter games without gameplay descriptions
+        const gamesWithDescriptions = gamesNeedingEmbeddings.filter(
+            game => game.gameplayDescription && game.gameplayDescription.trim() !== ''
+        );
+
+        console.log(
+            `Games with valid gameplay descriptions for embeddings: ${gamesWithDescriptions.length}`
+        );
+        if (gamesWithDescriptions.length === 0) {
+            console.log('No games have valid gameplay descriptions for embeddings.');
+            return;
+        }
+
+        console.log(`Generating embeddings for ${gamesWithDescriptions.length} games...`);
+
+        // generate embeddings in batches
+        const batchSize = 10;
+        for (let i = 0; i < gamesWithDescriptions.length; i += batchSize) {
+            const batch = gamesWithDescriptions.slice(i, i + batchSize);
+            console.log(
+                `[${i + 1}-${Math.min(i + batchSize, gamesWithDescriptions.length)}/${gamesWithDescriptions.length}] Processing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(gamesWithDescriptions.length / batchSize)}`
+            );
+            try {
+                const descriptions = batch.map(game => game.gameplayDescription!);
+                const embeddings = await model.embed(descriptions);
+                for (let j = 0; j < batch.length; j++) {
+                    const game = batch[j];
+                    const embedding = embeddings[j];
+                    if (embedding && embedding.embedding && embedding.embedding.length > 0) {
+                        existingEmbeddings[game.universeId] = embedding.embedding;
+                        console.log(
+                            `[${i + j + 1}/${gamesWithDescriptions.length}] Generated embedding for game: ${game.name}`
+                        );
+                    } else {
+                        console.warn(
+                            `[${i + j + 1}/${gamesWithDescriptions.length}] No valid embedding generated for game: ${game.name}`
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error(
+                    `[${i + 1}-${Math.min(i + batchSize, gamesWithDescriptions.length)}/${gamesWithDescriptions.length}] Failed to generate embeddings for batch:`,
+                    error
+                );
+            }
+
+            // Save progress every 10 batches (100 embeddings)
+            if ((i / batchSize + 1) % 10 === 0 || i + batchSize >= gamesWithDescriptions.length) {
+                fs.writeFileSync(embeddingsPath, JSON.stringify(existingEmbeddings, null, 4));
+                console.log(
+                    `Saved progress after ${Math.min(i + batchSize, gamesWithDescriptions.length)} embeddings to ${embeddingsPath}`
+                );
+            }
+        }
+
+        // Final save
+        fs.writeFileSync(embeddingsPath, JSON.stringify(existingEmbeddings, null, 4));
+        console.log(
+            `Generated embeddings for ${gamesWithDescriptions.length} games in ${embeddingsPath}`
+        );
+    },
+    async findSimilarGames() {
+        // find game from argument
+        const game = process.argv[3];
+        if (!game) {
+            console.error('Please provide a game universeId to find similar games.');
+            return;
+        }
+
+        // load embeddings
+        const embeddingsPath = path.join(process.cwd(), 'data', 'games', 'embeddings.json');
+        if (!fs.existsSync(embeddingsPath)) {
+            console.error('embeddings.json not found. Run generateEmbeddings first.');
+            return;
+        }
+        const embeddings: Record<number, number[]> = JSON.parse(
+            fs.readFileSync(embeddingsPath, 'utf-8')
+        );
+
+        // get embeddings for the specified game
+        const universeId = parseInt(game, 10);
+        if (!(universeId in embeddings)) {
+            console.error(`No embeddings found for game with universeId ${universeId}.`);
+            return;
+        }
+        const targetEmbedding = embeddings[universeId];
+
+        // run cosine similarity search
+        const cosineSimilarity = (a: number[], b: number[]) => {
+            const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
+            const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+            const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+            return dotProduct / (normA * normB);
+        };
+        const similarGames: { universeId: number; similarity: number }[] = [];
+        for (const [id, embedding] of Object.entries(embeddings)) {
+            if (parseInt(id) === universeId) continue; // skip the target game itself
+            const similarity = cosineSimilarity(targetEmbedding, embedding);
+            similarGames.push({ universeId: parseInt(id), similarity });
+        }
+
+        // sort by similarity
+        similarGames.sort((a, b) => b.similarity - a.similarity);
+
+        // load games
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        if (!fs.existsSync(gamesPath)) {
+            console.error('games.json not found. Run gatherGames first.');
+            return;
+        }
+
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+
+        // output top 10 similar games as a table
+        const targetGame = games.find(game => game.universeId === universeId);
+        console.log(`\nTop 10 similar games to ${targetGame?.name}:\n`);
+
+        // Table header
+        console.log(
+            'Rank | Game Name                                      | Universe ID | Similarity | Link'
+        );
+        console.log(
+            '-----|------------------------------------------------|-------------|------------|-----------------------------------------------------'
+        );
+
+        for (let i = 0; i < Math.min(10, similarGames.length); i++) {
+            const gameId = similarGames[i].universeId;
+            const similarity = similarGames[i].similarity.toFixed(4);
+            const game = games.find(g => g.universeId === gameId);
+            const gameName = game?.name || 'Unknown Game';
+            const placeId = game?.rootPlaceId || 'N/A';
+            const link = placeId !== 'N/A' ? `https://roblox.com/games/${placeId}` : 'N/A';
+
+            // Format row with proper alignment
+            const rank = `${i + 1}`.padEnd(4);
+            const nameFormatted =
+                gameName.length > 46 ? gameName.substring(0, 43) + '...' : gameName.padEnd(46);
+            const idFormatted = gameId.toString().padEnd(11);
+            const simFormatted = similarity.padEnd(10);
+
+            console.log(`${rank} | ${nameFormatted} | ${idFormatted} | ${simFormatted} | ${link}`);
+        }
     }
 };
 
