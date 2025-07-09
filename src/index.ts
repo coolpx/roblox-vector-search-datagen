@@ -36,6 +36,7 @@ async function loadSystemPrompt(name: 'gameplayAnalysis') {
 
 // command registry
 const commands: Record<string, () => Promise<void>> = {
+    // data gathering
     async gatherGames() {
         // get sorts
         console.log('Getting game sorts');
@@ -564,6 +565,125 @@ const commands: Record<string, () => Promise<void>> = {
         fs.writeFileSync(gamesPath, JSON.stringify(Array.from(gameMap.values()), null, 4));
         console.log(`Updated descriptions in ${gamesPath}`);
     },
+    // data utilities
+    async countGames() {
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        if (!fs.existsSync(gamesPath)) {
+            console.error('games.json not found. Run gatherGames first.');
+            return;
+        }
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+        console.log(`Total games: ${games.length}`);
+        const withDescriptions = games.filter(
+            g => g.description && g.description.trim() !== ''
+        ).length;
+        console.log(`Games with descriptions: ${withDescriptions}`);
+        const withGameplayDescriptions = games.filter(
+            g => g.gameplayDescription && g.gameplayDescription.trim() !== ''
+        ).length;
+        console.log(`Games with gameplay descriptions: ${withGameplayDescriptions}`);
+    },
+    async findSimilarGames() {
+        // find game from argument
+        const game = process.argv[3];
+        if (!game) {
+            console.error('Please provide a game universeId to find similar games.');
+            return;
+        }
+
+        // load embeddings
+        const embeddingsPath = path.join(process.cwd(), 'data', 'games', 'embeddings.json');
+        if (!fs.existsSync(embeddingsPath)) {
+            console.error('embeddings.json not found. Run generateEmbeddings first.');
+            return;
+        }
+        const embeddings: Record<number, number[]> = JSON.parse(
+            fs.readFileSync(embeddingsPath, 'utf-8')
+        );
+
+        // get embeddings for the specified game
+        const universeId = parseInt(game);
+        if (!(universeId in embeddings)) {
+            console.error(`No embeddings found for game with universeId ${universeId}.`);
+            return;
+        }
+        const targetEmbedding = embeddings[universeId];
+
+        // run cosine similarity search
+        const cosineSimilarity = (a: number[], b: number[]) => {
+            const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
+            const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+            const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+            return dotProduct / (normA * normB);
+        };
+        const similarGames: { universeId: number; similarity: number }[] = [];
+        for (const [id, embedding] of Object.entries(embeddings)) {
+            if (parseInt(id) === universeId) continue; // skip the target game itself
+            const similarity = cosineSimilarity(targetEmbedding, embedding);
+            similarGames.push({ universeId: parseInt(id), similarity });
+        }
+
+        // sort by similarity
+        similarGames.sort((a, b) => b.similarity - a.similarity);
+
+        // load games
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        if (!fs.existsSync(gamesPath)) {
+            console.error('games.json not found. Run gatherGames first.');
+            return;
+        }
+
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+
+        // output top 10 similar games as a table
+        const targetGame = games.find(game => game.universeId === universeId);
+        console.log(`\nTop 10 similar games to ${targetGame?.name}:\n`);
+
+        // Table header
+        console.log(
+            'Rank | Game Name                                      | Universe ID | Similarity | Link'
+        );
+        console.log(
+            '-----|------------------------------------------------|-------------|------------|-----------------------------------------------------'
+        );
+
+        for (let i = 0; i < Math.min(10, similarGames.length); i++) {
+            const gameId = similarGames[i].universeId;
+            const similarity = similarGames[i].similarity.toFixed(4);
+            const game = games.find(g => g.universeId === gameId);
+            const gameName = game?.name || 'Unknown Game';
+            const placeId = game?.rootPlaceId || 'N/A';
+            const link = placeId !== 'N/A' ? `https://roblox.com/games/${placeId}` : 'N/A';
+
+            // Format row with proper alignment
+            const rank = `${i + 1}`.padEnd(4);
+            const nameFormatted =
+                gameName.length > 46 ? gameName.substring(0, 43) + '...' : gameName.padEnd(46);
+            const idFormatted = gameId.toString().padEnd(11);
+            const simFormatted = similarity.padEnd(10);
+
+            console.log(`${rank} | ${nameFormatted} | ${idFormatted} | ${simFormatted} | ${link}`);
+        }
+    },
+    async clearGameplayDescriptions() {
+        // Clear gameplay descriptions from games.json
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        if (!fs.existsSync(gamesPath)) {
+            console.error('games.json not found. Run gatherGames first.');
+            return;
+        }
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+
+        // Clear gameplay descriptions
+        for (const game of games) {
+            game.gameplayDescription = undefined;
+        }
+
+        // Write updated games to file
+        fs.writeFileSync(gamesPath, JSON.stringify(games, null, 4));
+        console.log(`Cleared gameplay descriptions in ${gamesPath}`);
+    },
+    // local backend
     async generateGameplayDescriptions() {
         const client = new LMStudioClient();
 
@@ -667,174 +787,6 @@ const commands: Record<string, () => Promise<void>> = {
             `Updated gameplay descriptions for ${gamesMissingGameplayDescriptions.length} games in ${gamesPath}`
         );
     },
-    async prepareOpenAIGameplayDescriptionBatch() {
-        // read games.json
-        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
-        if (!fs.existsSync(gamesPath)) {
-            console.error('games.json not found. Run gatherGames first.');
-            return;
-        }
-
-        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
-
-        // filter games that have a description but no gameplay description
-        const gamesMissingGameplayDescriptions = games.filter(
-            game =>
-                game.description &&
-                (!game.gameplayDescription || game.gameplayDescription.trim() === '')
-        );
-
-        if (gamesMissingGameplayDescriptions.length === 0) {
-            console.log('No games are missing gameplay descriptions.');
-            return;
-        }
-
-        console.log(
-            `Preparing OpenAI batch for ${gamesMissingGameplayDescriptions.length} games...`
-        );
-
-        const outputDir = path.join(process.cwd(), 'data', 'games', 'openai_batches');
-        fs.mkdirSync(outputDir, { recursive: true });
-
-        const systemPrompt = await loadSystemPrompt('gameplayAnalysis');
-
-        // Batch processing variables
-        let processedCount = 0;
-        let batchNumber = 1;
-        const batchSize = 500;
-        let currentBatchCount = 0;
-        let writeStream: fs.WriteStream;
-
-        // Initialize first batch file
-        const getBatchPath = (batchNum: number) => 
-            path.join(outputDir, `openai_gameplay_batch_${batchNum.toString().padStart(3, '0')}.jsonl`);
-        
-        writeStream = fs.createWriteStream(getBatchPath(batchNumber), { flags: 'w' });
-        console.log(`Starting batch ${batchNumber}: ${getBatchPath(batchNumber)}`);
-
-        for (const game of gamesMissingGameplayDescriptions) {
-            // load icon and thumbnail images as base64
-            const iconPath = path.join(
-                process.cwd(),
-                'data',
-                'games',
-                'images',
-                game.universeId.toString(),
-                'icon.webp'
-            );
-            const thumbnailPath = path.join(
-                process.cwd(),
-                'data',
-                'games',
-                'images',
-                game.universeId.toString(),
-                'thumbnail.webp'
-            );
-            if (!fs.existsSync(iconPath)) {
-                console.warn(
-                    `Icon not found for game ${game.universeId} (${game.name}), skipping...`
-                );
-                continue;
-            }
-            if (!fs.existsSync(thumbnailPath)) {
-                console.warn(
-                    `Thumbnail not found for game ${game.universeId} (${game.name}), skipping...`
-                );
-                continue;
-            }
-
-            // create request
-            const request: {
-                custom_id: string;
-                method: 'POST';
-                url: '/v1/chat/completions';
-                body: OpenAI.ChatCompletionCreateParams;
-            } = {
-                custom_id: `gameplay_description_${game.universeId}`,
-                method: 'POST',
-                url: '/v1/chat/completions',
-                body: {
-                    model: openaiDescriptionModel,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: systemPrompt
-                        },
-                        {
-                            role: 'user',
-                            content: [
-                                {
-                                    type: 'image_url',
-                                    image_url: {
-                                        url: `https://coolpixels.net/assets/robloxImages/${game.universeId}/icon.webp`,
-                                        detail: 'low'
-                                    }
-                                },
-                                {
-                                    type: 'image_url',
-                                    image_url: {
-                                        url: `https://coolpixels.net/assets/robloxImages/${game.universeId}/thumbnail.webp`,
-                                        detail: 'low'
-                                    }
-                                },
-                                {
-                                    type: 'text',
-                                    text: `**Game Title**: ${game.name}\n\n**Game Description**: ${game.description}`
-                                }
-                            ]
-                        }
-                    ]
-                }
-            };
-
-            // Write line to file immediately
-            const line = JSON.stringify(request) + '\n';
-            writeStream.write(line);
-            processedCount++;
-            currentBatchCount++;
-
-            // Check if we need to start a new batch file
-            if (currentBatchCount >= batchSize && processedCount < gamesMissingGameplayDescriptions.length) {
-                writeStream.end();
-                console.log(`Completed batch ${batchNumber}: ${currentBatchCount} games`);
-                
-                batchNumber++;
-                currentBatchCount = 0;
-                writeStream = fs.createWriteStream(getBatchPath(batchNumber), { flags: 'w' });
-                console.log(`Starting batch ${batchNumber}: ${getBatchPath(batchNumber)}`);
-            }
-
-            // Log progress every 100 games
-            if (processedCount % 100 === 0) {
-                console.log(
-                    `Processed ${processedCount}/${gamesMissingGameplayDescriptions.length} games...`
-                );
-            }
-        }
-
-        // Close the write stream
-        writeStream.end();
-        console.log(`Completed batch ${batchNumber}: ${currentBatchCount} games`);
-
-        console.log(`Prepared OpenAI batch for ${processedCount} games across ${batchNumber} batch files in ${outputDir}`);
-    },
-    async countGames() {
-        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
-        if (!fs.existsSync(gamesPath)) {
-            console.error('games.json not found. Run gatherGames first.');
-            return;
-        }
-        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
-        console.log(`Total games: ${games.length}`);
-        const withDescriptions = games.filter(
-            g => g.description && g.description.trim() !== ''
-        ).length;
-        console.log(`Games with descriptions: ${withDescriptions}`);
-        const withGameplayDescriptions = games.filter(
-            g => g.gameplayDescription && g.gameplayDescription.trim() !== ''
-        ).length;
-        console.log(`Games with gameplay descriptions: ${withGameplayDescriptions}`);
-    },
     async generateEmbeddings() {
         // load embedding model
         const client = new LMStudioClient();
@@ -933,50 +885,9 @@ const commands: Record<string, () => Promise<void>> = {
             `Generated embeddings for ${gamesWithDescriptions.length} games in ${embeddingsPath}`
         );
     },
-    async findSimilarGames() {
-        // find game from argument
-        const game = process.argv[3];
-        if (!game) {
-            console.error('Please provide a game universeId to find similar games.');
-            return;
-        }
-
-        // load embeddings
-        const embeddingsPath = path.join(process.cwd(), 'data', 'games', 'embeddings.json');
-        if (!fs.existsSync(embeddingsPath)) {
-            console.error('embeddings.json not found. Run generateEmbeddings first.');
-            return;
-        }
-        const embeddings: Record<number, number[]> = JSON.parse(
-            fs.readFileSync(embeddingsPath, 'utf-8')
-        );
-
-        // get embeddings for the specified game
-        const universeId = parseInt(game);
-        if (!(universeId in embeddings)) {
-            console.error(`No embeddings found for game with universeId ${universeId}.`);
-            return;
-        }
-        const targetEmbedding = embeddings[universeId];
-
-        // run cosine similarity search
-        const cosineSimilarity = (a: number[], b: number[]) => {
-            const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
-            const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-            const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-            return dotProduct / (normA * normB);
-        };
-        const similarGames: { universeId: number; similarity: number }[] = [];
-        for (const [id, embedding] of Object.entries(embeddings)) {
-            if (parseInt(id) === universeId) continue; // skip the target game itself
-            const similarity = cosineSimilarity(targetEmbedding, embedding);
-            similarGames.push({ universeId: parseInt(id), similarity });
-        }
-
-        // sort by similarity
-        similarGames.sort((a, b) => b.similarity - a.similarity);
-
-        // load games
+    // openai backend
+    async prepareOpenAIGameplayDescriptionBatch() {
+        // read games.json
         const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
         if (!fs.existsSync(gamesPath)) {
             console.error('games.json not found. Run gatherGames first.');
@@ -985,35 +896,154 @@ const commands: Record<string, () => Promise<void>> = {
 
         const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
 
-        // output top 10 similar games as a table
-        const targetGame = games.find(game => game.universeId === universeId);
-        console.log(`\nTop 10 similar games to ${targetGame?.name}:\n`);
-
-        // Table header
-        console.log(
-            'Rank | Game Name                                      | Universe ID | Similarity | Link'
-        );
-        console.log(
-            '-----|------------------------------------------------|-------------|------------|-----------------------------------------------------'
+        // filter games that have a description but no gameplay description
+        const gamesMissingGameplayDescriptions = games.filter(
+            game =>
+                game.description &&
+                (!game.gameplayDescription || game.gameplayDescription.trim() === '')
         );
 
-        for (let i = 0; i < Math.min(10, similarGames.length); i++) {
-            const gameId = similarGames[i].universeId;
-            const similarity = similarGames[i].similarity.toFixed(4);
-            const game = games.find(g => g.universeId === gameId);
-            const gameName = game?.name || 'Unknown Game';
-            const placeId = game?.rootPlaceId || 'N/A';
-            const link = placeId !== 'N/A' ? `https://roblox.com/games/${placeId}` : 'N/A';
-
-            // Format row with proper alignment
-            const rank = `${i + 1}`.padEnd(4);
-            const nameFormatted =
-                gameName.length > 46 ? gameName.substring(0, 43) + '...' : gameName.padEnd(46);
-            const idFormatted = gameId.toString().padEnd(11);
-            const simFormatted = similarity.padEnd(10);
-
-            console.log(`${rank} | ${nameFormatted} | ${idFormatted} | ${simFormatted} | ${link}`);
+        if (gamesMissingGameplayDescriptions.length === 0) {
+            console.log('No games are missing gameplay descriptions.');
+            return;
         }
+
+        console.log(
+            `Preparing OpenAI batch for ${gamesMissingGameplayDescriptions.length} games...`
+        );
+
+        const outputDir = path.join(process.cwd(), 'data', 'games', 'openai_batches');
+        fs.mkdirSync(outputDir, { recursive: true });
+
+        const systemPrompt = await loadSystemPrompt('gameplayAnalysis');
+
+        // Batch processing variables
+        let processedCount = 0;
+        let batchNumber = 1;
+        const batchSize = 500;
+        let currentBatchCount = 0;
+        let writeStream: fs.WriteStream;
+
+        // Initialize first batch file
+        const getBatchPath = (batchNum: number) =>
+            path.join(
+                outputDir,
+                `openai_gameplay_batch_${batchNum.toString().padStart(3, '0')}.jsonl`
+            );
+
+        writeStream = fs.createWriteStream(getBatchPath(batchNumber), { flags: 'w' });
+        console.log(`Starting batch ${batchNumber}: ${getBatchPath(batchNumber)}`);
+
+        for (const game of gamesMissingGameplayDescriptions) {
+            // load icon and thumbnail images as base64
+            const iconPath = path.join(
+                process.cwd(),
+                'data',
+                'games',
+                'images',
+                game.universeId.toString(),
+                'icon.webp'
+            );
+            const thumbnailPath = path.join(
+                process.cwd(),
+                'data',
+                'games',
+                'images',
+                game.universeId.toString(),
+                'thumbnail.webp'
+            );
+            if (!fs.existsSync(iconPath)) {
+                console.warn(
+                    `Icon not found for game ${game.universeId} (${game.name}), skipping...`
+                );
+                continue;
+            }
+            if (!fs.existsSync(thumbnailPath)) {
+                console.warn(
+                    `Thumbnail not found for game ${game.universeId} (${game.name}), skipping...`
+                );
+                continue;
+            }
+
+            // create request
+            const request: {
+                custom_id: string;
+                method: 'POST';
+                url: '/v1/chat/completions';
+                body: OpenAI.ChatCompletionCreateParams;
+            } = {
+                custom_id: `gameplay_description_${game.universeId}`,
+                method: 'POST',
+                url: '/v1/chat/completions',
+                body: {
+                    model: openaiDescriptionModel,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: systemPrompt
+                        },
+                        {
+                            role: 'user',
+                            content: [
+                                {
+                                    type: 'image_url',
+                                    image_url: {
+                                        url: `https://coolpixels.net/assets/robloxImages/${game.universeId}/icon.webp`,
+                                        detail: 'low'
+                                    }
+                                },
+                                {
+                                    type: 'image_url',
+                                    image_url: {
+                                        url: `https://coolpixels.net/assets/robloxImages/${game.universeId}/thumbnail.webp`,
+                                        detail: 'low'
+                                    }
+                                },
+                                {
+                                    type: 'text',
+                                    text: `**Game Title**: ${game.name}\n\n**Game Description**: ${game.description}`
+                                }
+                            ]
+                        }
+                    ]
+                }
+            };
+
+            // Write line to file immediately
+            const line = JSON.stringify(request) + '\n';
+            writeStream.write(line);
+            processedCount++;
+            currentBatchCount++;
+
+            // Check if we need to start a new batch file
+            if (
+                currentBatchCount >= batchSize &&
+                processedCount < gamesMissingGameplayDescriptions.length
+            ) {
+                writeStream.end();
+                console.log(`Completed batch ${batchNumber}: ${currentBatchCount} games`);
+
+                batchNumber++;
+                currentBatchCount = 0;
+                writeStream = fs.createWriteStream(getBatchPath(batchNumber), { flags: 'w' });
+                console.log(`Starting batch ${batchNumber}: ${getBatchPath(batchNumber)}`);
+            }
+
+            // Log progress every 100 games
+            if (processedCount % 100 === 0) {
+                console.log(
+                    `Processed ${processedCount}/${gamesMissingGameplayDescriptions.length} games...`
+                );
+            }
+        }
+
+        // Close the write stream
+        writeStream.end();
+        console.log(`Completed batch ${batchNumber}: ${currentBatchCount} games`);
+
+        console.log(
+            `Prepared OpenAI batch for ${processedCount} games across ${batchNumber} batch files in ${outputDir}`
+        );
     },
     async importOpenAIGameplayDescriptions() {
         // Import gameplay descriptions from OpenAI batch output files
@@ -1048,23 +1078,23 @@ const commands: Record<string, () => Promise<void>> = {
         for (const file of outputFiles) {
             const filePath = path.join(outputDir, file);
             console.log(`Processing file: ${file}`);
-            
+
             try {
                 const fileContent = fs.readFileSync(filePath, 'utf-8');
                 const lines = fileContent.trim().split('\n');
-                
+
                 let fileProcessed = 0;
                 let fileUpdated = 0;
                 let fileErrors = 0;
 
                 for (const line of lines) {
                     if (!line.trim()) continue;
-                    
+
                     try {
                         const batchResponse = JSON.parse(line);
                         totalProcessed++;
                         fileProcessed++;
-                        
+
                         // Extract universe ID from custom_id
                         const customId = batchResponse.custom_id;
                         if (!customId || !customId.startsWith('gameplay_description_')) {
@@ -1073,32 +1103,36 @@ const commands: Record<string, () => Promise<void>> = {
                             fileErrors++;
                             continue;
                         }
-                        
+
                         const universeId = parseInt(customId.replace('gameplay_description_', ''));
                         const game = gameMap.get(universeId);
-                        
+
                         if (!game) {
                             console.warn(`Game not found for universe ID: ${universeId}`);
                             totalErrors++;
                             fileErrors++;
                             continue;
                         }
-                        
+
                         // Check if the response was successful
                         if (batchResponse.error) {
-                            console.warn(`Error in batch response for game ${universeId}: ${batchResponse.error}`);
+                            console.warn(
+                                `Error in batch response for game ${universeId}: ${batchResponse.error}`
+                            );
                             totalErrors++;
                             fileErrors++;
                             continue;
                         }
-                        
+
                         if (batchResponse.response?.status_code !== 200) {
-                            console.warn(`Non-200 status code for game ${universeId}: ${batchResponse.response?.status_code}`);
+                            console.warn(
+                                `Non-200 status code for game ${universeId}: ${batchResponse.response?.status_code}`
+                            );
                             totalErrors++;
                             fileErrors++;
                             continue;
                         }
-                        
+
                         // Extract the gameplay description from the response
                         const choices = batchResponse.response?.body?.choices;
                         if (!choices || choices.length === 0) {
@@ -1107,7 +1141,7 @@ const commands: Record<string, () => Promise<void>> = {
                             fileErrors++;
                             continue;
                         }
-                        
+
                         const gameplayDescription = choices[0]?.message?.content;
                         if (!gameplayDescription) {
                             console.warn(`No content in response for game ${universeId}`);
@@ -1115,23 +1149,25 @@ const commands: Record<string, () => Promise<void>> = {
                             fileErrors++;
                             continue;
                         }
-                        
+
                         // Update the game with the gameplay description
                         game.gameplayDescription = gameplayDescription.trim();
                         totalUpdated++;
                         fileUpdated++;
-                        
-                        console.log(`Updated gameplay description for game ${universeId} (${game.name})`);
-                        
+
+                        console.log(
+                            `Updated gameplay description for game ${universeId} (${game.name})`
+                        );
                     } catch (error) {
                         console.error(`Error parsing line in file ${file}:`, error);
                         totalErrors++;
                         fileErrors++;
                     }
                 }
-                
-                console.log(`File ${file}: Processed ${fileProcessed}, Updated ${fileUpdated}, Errors ${fileErrors}`);
-                
+
+                console.log(
+                    `File ${file}: Processed ${fileProcessed}, Updated ${fileUpdated}, Errors ${fileErrors}`
+                );
             } catch (error) {
                 console.error(`Error reading file ${file}:`, error);
             }
@@ -1139,30 +1175,12 @@ const commands: Record<string, () => Promise<void>> = {
 
         // Save the updated games
         fs.writeFileSync(gamesPath, JSON.stringify(games, null, 4));
-        
+
         console.log(`\nImport completed:`);
         console.log(`Total responses processed: ${totalProcessed}`);
         console.log(`Games updated: ${totalUpdated}`);
         console.log(`Errors: ${totalErrors}`);
         console.log(`Updated games saved to: ${gamesPath}`);
-    },
-    async clearGameplayDescriptions() {
-        // Clear gameplay descriptions from games.json
-        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
-        if (!fs.existsSync(gamesPath)) {
-            console.error('games.json not found. Run gatherGames first.');
-            return;
-        }
-        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
-
-        // Clear gameplay descriptions
-        for (const game of games) {
-            game.gameplayDescription = undefined;
-        }
-
-        // Write updated games to file
-        fs.writeFileSync(gamesPath, JSON.stringify(games, null, 4));
-        console.log(`Cleared gameplay descriptions in ${gamesPath}`);
     }
 };
 
