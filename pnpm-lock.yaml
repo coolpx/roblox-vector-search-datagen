@@ -17,6 +17,9 @@ importers:
       '@types/node':
         specifier: ^24.0.10
         version: 24.0.10
+      openai:
+        specifier: ^5.8.2
+        version: 5.8.2(ws@8.18.3)(zod@3.25.74)
     devDependencies:
       prettier:
         specifier: ^3.6.2
@@ -60,6 +63,18 @@ packages:
 
   jsonschema@1.5.0:
     resolution: {integrity: sha512-K+A9hhqbn0f3pJX17Q/7H6yQfD/5OXgdrR5UE12gMXCiN9D5Xq2o5mddV2QEcX/bjla99ASsAAQUyMCCRWAEhw==}
+
+  openai@5.8.2:
+    resolution: {integrity: sha512-8C+nzoHYgyYOXhHGN6r0fcb4SznuEn1R7YZMvlqDbnCuE0FM2mm3T1HiYW6WIcMS/F1Of2up/cSPjLPaWt0X9Q==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   prettier@3.6.2:
     resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
@@ -142,6 +157,11 @@ snapshots:
   has-flag@4.0.0: {}
 
   jsonschema@1.5.0: {}
+
+  openai@5.8.2(ws@8.18.3)(zod@3.25.74):
+    optionalDependencies:
+      ws: 8.18.3
+      zod: 3.25.74
 
   prettier@3.6.2: {}
 
