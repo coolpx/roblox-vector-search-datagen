@@ -1,9 +1,9 @@
 # Web UI source code: https://github.com/coolpx/roblox-vector-search-webui/
 # Demo: https://roblox-vector-search.coolpixels.net/
 
-# roblox-vector-search
+# Roblox Vector Search
 
-This is a TypeScript project using pnpm. Source files are in `src/` and compiled output is in `dist/`.
+Tools for gathering and processing Roblox data to create embeddings which are hopefully based on gameplay.
 
 ## Setup
 
@@ -25,7 +25,7 @@ pnpm run build
 pnpm start
 ```
 
-## Using
+## Usage
 
 1. Gather games
 
