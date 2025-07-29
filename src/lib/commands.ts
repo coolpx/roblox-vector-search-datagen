@@ -1,41 +1,19 @@
-// modules
+// Shared commands extracted from interactive.ts
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import OpenAI from 'openai';
 import { LMStudioClient } from '@lmstudio/sdk';
+import {
+    descriptionModel,
+    embeddingModel,
+    openaiDescriptionModel,
+    loadSystemPrompt,
+    wait,
+    cosineSimilarity
+} from './tools';
 
-// types
-type FilterSort = {
-    contentType: 'Filters';
-};
-
-type Game = {
-    universeId: number;
-    rootPlaceId: number;
-    name: string;
-    description?: string | null;
-    gameplayDescription?: string | null;
-};
-
-type GameSort = {
-    contentType: 'Games';
-    games: Game[];
-};
-
-// constants
-const descriptionModel = 'google/gemma-3-4b';
-const embeddingModel = 'CompendiumLabs/bge-large-en-v1.5-gguf/bge-large-en-v1.5-q8_0.gguf';
-
-const openaiDescriptionModel = 'gpt-4o-mini';
-
-// functions
-async function loadSystemPrompt(name: 'gameplayAnalysis') {
-    return fs.readFileSync(`./prompts/${name}.txt`, 'utf-8');
-}
-
-// command registry
-const commands: Record<string, () => Promise<void>> = {
+export const commands: Record<string, () => Promise<void>> = {
     // data gathering
     async gatherGames() {
         // get sorts
@@ -500,15 +478,13 @@ const commands: Record<string, () => Promise<void>> = {
         console.log(`Excluded (no description): ${excludedNoDescription}`);
         console.log(`Excluded (already have gameplay descriptions): ${excludedHasGameplayDesc}`);
 
-        const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
-        const batchSize = 50;
         // Only batch games that do not already have a description
         const gamesMissingDesc = games.filter(
             g => g.description === undefined || g.description === ''
         );
         const gameMap = new Map(games.map(g => [g.universeId, g]));
-        for (let i = 0; i < gamesMissingDesc.length; i += batchSize) {
-            const batch = gamesMissingDesc.slice(i, i + batchSize);
+        for (let i = 0; i < gamesMissingDesc.length; i += 50) {
+            const batch = gamesMissingDesc.slice(i, i + 50);
             const batchUniverseIds = batch.map(g => g.universeId);
             let retry = false;
             let descRes;
@@ -610,12 +586,6 @@ const commands: Record<string, () => Promise<void>> = {
         const targetEmbedding = embeddings[universeId];
 
         // run cosine similarity search
-        const cosineSimilarity = (a: number[], b: number[]) => {
-            const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
-            const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-            const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-            return dotProduct / (normA * normB);
-        };
         const similarGames: { universeId: number; similarity: number }[] = [];
         for (const [id, embedding] of Object.entries(embeddings)) {
             if (parseInt(id) === universeId) continue; // skip the target game itself
@@ -1183,18 +1153,3 @@ const commands: Record<string, () => Promise<void>> = {
         console.log(`Updated games saved to: ${gamesPath}`);
     }
 };
-
-// main function
-async function main() {
-    const [, , cmd] = process.argv;
-    if (!cmd || !(cmd in commands)) {
-        console.log('Available commands:');
-        for (const name of Object.keys(commands)) {
-            console.log('  -', name);
-        }
-        process.exit(1);
-    }
-    await commands[cmd]();
-}
-
-main();

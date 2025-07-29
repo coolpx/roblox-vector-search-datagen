@@ -1,4 +1,5 @@
 # Web UI source code: https://github.com/coolpx/roblox-vector-search-webui/
+
 # Demo: https://roblox-vector-search.coolpixels.net/
 
 # Roblox Vector Search
@@ -22,7 +23,7 @@ pnpm run build
 3. Run the project:
 
 ```sh
-pnpm start
+pnpm run interactive
 ```
 
 ## Usage
