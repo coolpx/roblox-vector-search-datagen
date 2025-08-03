@@ -1,5 +1,17 @@
 import { z } from 'zod';
 
+export const apiSuccessResponse = <T extends z.ZodTypeAny>(
+    dataSchema: T
+): z.ZodObject<{
+    success: z.ZodLiteral<true>;
+    data: T;
+}> => {
+    return z.object({
+        success: z.literal(true),
+        data: dataSchema
+    });
+};
+
 export const apiResponse = <T extends z.ZodTypeAny>(
     dataSchema: T
 ): z.ZodUnion<
@@ -13,9 +25,6 @@ export const apiResponse = <T extends z.ZodTypeAny>(
             success: z.literal(false),
             message: z.string()
         }),
-        z.object({
-            success: z.literal(true),
-            data: dataSchema
-        })
+        apiSuccessResponse(dataSchema)
     ]);
 };

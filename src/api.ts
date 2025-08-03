@@ -23,15 +23,17 @@ fs.readdirSync(endpointsDir).forEach(file => {
             app[method](route, async (req, res) => {
                 try {
                     const result = await endpoint.handle(req, res);
-                    const parseResult = endpoint.response.safeParse(result);
+                    const parseResult =
+                        endpoint.response.safeParse(
+                            result
+                        );
                     if (parseResult.success) {
                         res.json(parseResult.data);
                     } else {
                         console.error('Invalid response format:', parseResult.error);
                         res.status(500).json({
                             success: false,
-                            message: 'Invalid response format',
-                            errors: parseResult.error.errors
+                            message: 'Invalid response format'
                         });
                     }
                 } catch (err) {

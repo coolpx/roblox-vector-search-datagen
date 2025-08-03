@@ -7,7 +7,7 @@
   "paths": {
     "/games": {
       "get": {
-        "summary": "Get the list of all games in the database. Optional query param: ?limit=<number> to limit results",
+        "summary": "Get the list of all games in the database.",
         "operationId": "getGames",
         "parameters": [
           {
@@ -27,578 +27,103 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "~standard": {
-                    "vendor": "zod",
-                    "version": 1
-                  },
-                  "def": {
-                    "type": "union",
-                    "options": [
-                      {
-                        "~standard": {
-                          "vendor": "zod",
-                          "version": 1
-                        },
-                        "def": {
-                          "type": "object",
-                          "shape": {
-                            "success": {
-                              "~standard": {
-                                "vendor": "zod",
-                                "version": 1
-                              },
-                              "def": {
-                                "type": "literal",
-                                "values": [
-                                  false
-                                ]
-                              },
-                              "values": {}
-                            },
-                            "message": {
-                              "~standard": {
-                                "vendor": "zod",
-                                "version": 1
-                              },
-                              "def": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "universeId": {
+                            "type": "number"
+                          },
+                          "rootPlaceId": {
+                            "type": "number"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "anyOf": [
+                              {
                                 "type": "string"
                               },
-                              "format": null,
-                              "minLength": null,
-                              "maxLength": null
-                            }
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "gameplayDescription": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
-                        }
-                      },
-                      {
-                        "~standard": {
-                          "vendor": "zod",
-                          "version": 1
                         },
-                        "def": {
-                          "type": "object",
-                          "shape": {
-                            "success": {
-                              "~standard": {
-                                "vendor": "zod",
-                                "version": 1
-                              },
-                              "def": {
-                                "type": "literal",
-                                "values": [
-                                  true
-                                ]
-                              },
-                              "values": {}
-                            },
-                            "data": {
-                              "~standard": {
-                                "vendor": "zod",
-                                "version": 1
-                              },
-                              "def": {
-                                "type": "array",
-                                "element": {
-                                  "~standard": {
-                                    "vendor": "zod",
-                                    "version": 1
-                                  },
-                                  "def": {
-                                    "type": "object",
-                                    "shape": {
-                                      "universeId": {
-                                        "~standard": {
-                                          "vendor": "zod",
-                                          "version": 1
-                                        },
-                                        "def": {
-                                          "type": "number",
-                                          "checks": []
-                                        },
-                                        "minValue": null,
-                                        "maxValue": null,
-                                        "isInt": false,
-                                        "isFinite": true,
-                                        "format": null
-                                      },
-                                      "rootPlaceId": {
-                                        "~standard": {
-                                          "vendor": "zod",
-                                          "version": 1
-                                        },
-                                        "def": {
-                                          "type": "number",
-                                          "checks": []
-                                        },
-                                        "minValue": null,
-                                        "maxValue": null,
-                                        "isInt": false,
-                                        "isFinite": true,
-                                        "format": null
-                                      },
-                                      "name": {
-                                        "~standard": {
-                                          "vendor": "zod",
-                                          "version": 1
-                                        },
-                                        "def": {
-                                          "type": "string"
-                                        },
-                                        "format": null,
-                                        "minLength": null,
-                                        "maxLength": null
-                                      },
-                                      "description": {
-                                        "~standard": {
-                                          "vendor": "zod",
-                                          "version": 1
-                                        },
-                                        "def": {
-                                          "type": "nullable",
-                                          "innerType": {
-                                            "~standard": {
-                                              "vendor": "zod",
-                                              "version": 1
-                                            },
-                                            "def": {
-                                              "type": "string"
-                                            },
-                                            "format": null,
-                                            "minLength": null,
-                                            "maxLength": null
-                                          }
-                                        }
-                                      },
-                                      "gameplayDescription": {
-                                        "~standard": {
-                                          "vendor": "zod",
-                                          "version": 1
-                                        },
-                                        "def": {
-                                          "type": "nullable",
-                                          "innerType": {
-                                            "~standard": {
-                                              "vendor": "zod",
-                                              "version": 1
-                                            },
-                                            "def": {
-                                              "type": "string"
-                                            },
-                                            "format": null,
-                                            "minLength": null,
-                                            "maxLength": null
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              },
-                              "element": {
-                                "~standard": {
-                                  "vendor": "zod",
-                                  "version": 1
-                                },
-                                "def": {
-                                  "type": "object",
-                                  "shape": {
-                                    "universeId": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "number",
-                                        "checks": []
-                                      },
-                                      "minValue": null,
-                                      "maxValue": null,
-                                      "isInt": false,
-                                      "isFinite": true,
-                                      "format": null
-                                    },
-                                    "rootPlaceId": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "number",
-                                        "checks": []
-                                      },
-                                      "minValue": null,
-                                      "maxValue": null,
-                                      "isInt": false,
-                                      "isFinite": true,
-                                      "format": null
-                                    },
-                                    "name": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "string"
-                                      },
-                                      "format": null,
-                                      "minLength": null,
-                                      "maxLength": null
-                                    },
-                                    "description": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "nullable",
-                                        "innerType": {
-                                          "~standard": {
-                                            "vendor": "zod",
-                                            "version": 1
-                                          },
-                                          "def": {
-                                            "type": "string"
-                                          },
-                                          "format": null,
-                                          "minLength": null,
-                                          "maxLength": null
-                                        }
-                                      }
-                                    },
-                                    "gameplayDescription": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "nullable",
-                                        "innerType": {
-                                          "~standard": {
-                                            "vendor": "zod",
-                                            "version": 1
-                                          },
-                                          "def": {
-                                            "type": "string"
-                                          },
-                                          "format": null,
-                                          "minLength": null,
-                                          "maxLength": null
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
+                        "required": [
+                          "universeId",
+                          "rootPlaceId",
+                          "name",
+                          "description",
+                          "gameplayDescription"
+                        ],
+                        "additionalProperties": false
                       }
-                    ]
+                    }
                   },
-                  "options": [
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": [
                     {
-                      "~standard": {
-                        "vendor": "zod",
-                        "version": 1
-                      },
-                      "def": {
-                        "type": "object",
-                        "shape": {
-                          "success": {
-                            "~standard": {
-                              "vendor": "zod",
-                              "version": 1
-                            },
-                            "def": {
-                              "type": "literal",
-                              "values": [
-                                false
-                              ]
-                            },
-                            "values": {}
-                          },
-                          "message": {
-                            "~standard": {
-                              "vendor": "zod",
-                              "version": 1
-                            },
-                            "def": {
-                              "type": "string"
-                            },
-                            "format": null,
-                            "minLength": null,
-                            "maxLength": null
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "~standard": {
-                        "vendor": "zod",
-                        "version": 1
-                      },
-                      "def": {
-                        "type": "object",
-                        "shape": {
-                          "success": {
-                            "~standard": {
-                              "vendor": "zod",
-                              "version": 1
-                            },
-                            "def": {
-                              "type": "literal",
-                              "values": [
-                                true
-                              ]
-                            },
-                            "values": {}
-                          },
-                          "data": {
-                            "~standard": {
-                              "vendor": "zod",
-                              "version": 1
-                            },
-                            "def": {
-                              "type": "array",
-                              "element": {
-                                "~standard": {
-                                  "vendor": "zod",
-                                  "version": 1
-                                },
-                                "def": {
-                                  "type": "object",
-                                  "shape": {
-                                    "universeId": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "number",
-                                        "checks": []
-                                      },
-                                      "minValue": null,
-                                      "maxValue": null,
-                                      "isInt": false,
-                                      "isFinite": true,
-                                      "format": null
-                                    },
-                                    "rootPlaceId": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "number",
-                                        "checks": []
-                                      },
-                                      "minValue": null,
-                                      "maxValue": null,
-                                      "isInt": false,
-                                      "isFinite": true,
-                                      "format": null
-                                    },
-                                    "name": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "string"
-                                      },
-                                      "format": null,
-                                      "minLength": null,
-                                      "maxLength": null
-                                    },
-                                    "description": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "nullable",
-                                        "innerType": {
-                                          "~standard": {
-                                            "vendor": "zod",
-                                            "version": 1
-                                          },
-                                          "def": {
-                                            "type": "string"
-                                          },
-                                          "format": null,
-                                          "minLength": null,
-                                          "maxLength": null
-                                        }
-                                      }
-                                    },
-                                    "gameplayDescription": {
-                                      "~standard": {
-                                        "vendor": "zod",
-                                        "version": 1
-                                      },
-                                      "def": {
-                                        "type": "nullable",
-                                        "innerType": {
-                                          "~standard": {
-                                            "vendor": "zod",
-                                            "version": 1
-                                          },
-                                          "def": {
-                                            "type": "string"
-                                          },
-                                          "format": null,
-                                          "minLength": null,
-                                          "maxLength": null
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            },
-                            "element": {
-                              "~standard": {
-                                "vendor": "zod",
-                                "version": 1
-                              },
-                              "def": {
-                                "type": "object",
-                                "shape": {
-                                  "universeId": {
-                                    "~standard": {
-                                      "vendor": "zod",
-                                      "version": 1
-                                    },
-                                    "def": {
-                                      "type": "number",
-                                      "checks": []
-                                    },
-                                    "minValue": null,
-                                    "maxValue": null,
-                                    "isInt": false,
-                                    "isFinite": true,
-                                    "format": null
-                                  },
-                                  "rootPlaceId": {
-                                    "~standard": {
-                                      "vendor": "zod",
-                                      "version": 1
-                                    },
-                                    "def": {
-                                      "type": "number",
-                                      "checks": []
-                                    },
-                                    "minValue": null,
-                                    "maxValue": null,
-                                    "isInt": false,
-                                    "isFinite": true,
-                                    "format": null
-                                  },
-                                  "name": {
-                                    "~standard": {
-                                      "vendor": "zod",
-                                      "version": 1
-                                    },
-                                    "def": {
-                                      "type": "string"
-                                    },
-                                    "format": null,
-                                    "minLength": null,
-                                    "maxLength": null
-                                  },
-                                  "description": {
-                                    "~standard": {
-                                      "vendor": "zod",
-                                      "version": 1
-                                    },
-                                    "def": {
-                                      "type": "nullable",
-                                      "innerType": {
-                                        "~standard": {
-                                          "vendor": "zod",
-                                          "version": 1
-                                        },
-                                        "def": {
-                                          "type": "string"
-                                        },
-                                        "format": null,
-                                        "minLength": null,
-                                        "maxLength": null
-                                      }
-                                    }
-                                  },
-                                  "gameplayDescription": {
-                                    "~standard": {
-                                      "vendor": "zod",
-                                      "version": 1
-                                    },
-                                    "def": {
-                                      "type": "nullable",
-                                      "innerType": {
-                                        "~standard": {
-                                          "vendor": "zod",
-                                          "version": 1
-                                        },
-                                        "def": {
-                                          "type": "string"
-                                        },
-                                        "format": null,
-                                        "minLength": null,
-                                        "maxLength": null
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
+                      "universeId": 0,
+                      "rootPlaceId": 0,
+                      "name": "string",
+                      "description": null,
+                      "gameplayDescription": null
                     }
                   ]
                 }
               }
             }
           },
-          "400": {
-            "description": "Invalid request",
+          "default": {
+            "description": "Global error response",
             "content": {
               "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
                 "schema": {
-                  "~standard": {
-                    "vendor": "zod",
-                    "version": 1
-                  },
-                  "def": {
-                    "type": "object",
-                    "shape": {
-                      "success": {
-                        "~standard": {
-                          "vendor": "zod",
-                          "version": 1
-                        },
-                        "def": {
-                          "type": "literal",
-                          "values": [
-                            false
-                          ]
-                        },
-                        "values": {}
-                      },
-                      "message": {
-                        "~standard": {
-                          "vendor": "zod",
-                          "version": 1
-                        },
-                        "def": {
-                          "type": "string"
-                        },
-                        "format": null,
-                        "minLength": null,
-                        "maxLength": null
-                      }
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
                     }
-                  }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
                 }
               }
             }

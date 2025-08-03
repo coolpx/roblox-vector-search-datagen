@@ -26,24 +26,22 @@ declare global {
         path: string;
         description: string;
         handle: (req: Request, res: Response) => Promise<any>;
-        response: ApiResponseSchema;
         operationId?: string;
         parameters?: OpenApiParameter[];
-        responses?: {
+        responses: {
             [status: number]: OpenApiResponse;
         };
+        response: ApiResponseSchema;
     };
 
     type ApiEndpointWithBody<T extends z.ZodTypeAny> = ApiEndpointBase & {
         method: 'post' | 'put';
         body?: T | undefined;
-        response: ApiResponseSchema;
     };
 
     type ApiEndpointWithQuery<T extends z.ZodTypeAny> = ApiEndpointBase & {
         method: 'get' | 'delete';
         urlParams?: T | undefined;
-        response: ApiResponseSchema;
     };
 
     type ApiEndpointGet = ApiEndpointWithQuery<z.ZodTypeAny>;

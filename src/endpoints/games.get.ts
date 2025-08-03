@@ -1,25 +1,22 @@
 import path from 'path';
 import fs from 'fs';
 import { z } from 'zod';
-import { apiResponse } from '../lib/apiResponseSchema';
+import { apiResponse, apiSuccessResponse } from '../lib/apiResponseSchema';
 
-const responseSchema = apiResponse(
-    z.array(
-        z.object({
-            universeId: z.number(),
-            rootPlaceId: z.number(),
-            name: z.string(),
-            description: z.string().nullable(),
-            gameplayDescription: z.string().nullable()
-        })
-    )
+const responseSchema = z.array(
+    z.object({
+        universeId: z.number(),
+        rootPlaceId: z.number(),
+        name: z.string(),
+        description: z.string().nullable(),
+        gameplayDescription: z.string().nullable()
+    })
 );
 
 const endpoint: ApiEndpointGet = {
     method: 'get',
     path: '/games',
-    description:
-        'Get the list of all games in the database. Optional query param: ?limit=<number> to limit results',
+    description: 'Get the list of all games in the database.',
     operationId: 'getGames',
     parameters: [
         {
@@ -35,20 +32,12 @@ const endpoint: ApiEndpointGet = {
             description: 'A list of games',
             content: {
                 'application/json': {
-                    schema: responseSchema
-                }
-            }
-        },
-        400: {
-            description: 'Invalid request',
-            content: {
-                'application/json': {
-                    schema: z.object({ success: z.literal(false), message: z.string() })
+                    schema: z.toJSONSchema(apiSuccessResponse(responseSchema))
                 }
             }
         }
     },
-    response: responseSchema,
+    response: apiResponse(responseSchema),
     urlParams: z
         .object({
             limit: z.string().optional()
