@@ -108,19 +108,6 @@ const endpoint: ApiEndpointGet = {
             const model = await client.embedding.model(embeddingModel);
             const queryEmbedding = (await model.embed(query)).embedding;
 
-            // calculate similarity scores for all other games
-            const similarGames: { universeId: number; similarity: number }[] = [];
-            for (const [id, embedding] of Object.entries(embeddings)) {
-                const gameId = parseInt(id);
-
-                const similarity = cosineSimilarity(queryEmbedding, embedding);
-                similarGames.push({ universeId: gameId, similarity });
-            }
-
-            // sort by similarity (highest first) and limit results
-            similarGames.sort((a, b) => b.similarity - a.similarity);
-            const topSimilarGames = similarGames.slice(0, limit);
-
             // load games data
             const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
             if (!fs.existsSync(gamesPath)) {
@@ -132,6 +119,24 @@ const endpoint: ApiEndpointGet = {
 
             const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
             const gameMap = new Map(games.map(g => [g.universeId, g]));
+
+            // calculate similarity scores for all other games
+            const similarGames: { universeId: number; similarity: number }[] = [];
+            for (const [id, embedding] of Object.entries(embeddings)) {
+                const gameId = parseInt(id);
+
+                const similarity = cosineSimilarity(queryEmbedding, embedding);
+                const popularityAdjustmentFactor =
+                    Math.min(0.2, (gameMap.get(parseInt(id))!.playerCount || 0) / 500) + 0.8;
+                similarGames.push({
+                    universeId: gameId,
+                    similarity: similarity * popularityAdjustmentFactor
+                });
+            }
+
+            // sort by similarity (highest first) and limit results
+            similarGames.sort((a, b) => b.similarity - a.similarity);
+            const topSimilarGames = similarGames.slice(0, limit);
 
             // build response with game details
             const result = topSimilarGames

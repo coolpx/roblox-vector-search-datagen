@@ -116,6 +116,10 @@ const endpoint: ApiEndpointGet = {
                     relevanceScore: number;
                 } | null = null;
 
+                // Calculate popularity adjustment
+                const popularityAdjustmentFactor =
+                    Math.min(0.2, (game.playerCount || 0) / 500) + 0.8;
+
                 // 1. Title match (highest priority)
                 if (game.name && game.name.toLowerCase().includes(normalizedQuery)) {
                     const isExactMatch = game.name.toLowerCase() === normalizedQuery;
@@ -124,6 +128,7 @@ const endpoint: ApiEndpointGet = {
                     let score = 100; // base score for title match
                     if (isExactMatch) score += 50;
                     else if (startsWithQuery) score += 25;
+                    score *= popularityAdjustmentFactor;
 
                     bestMatch = { matchType: 'title', relevanceScore: score };
                 }
@@ -146,7 +151,8 @@ const endpoint: ApiEndpointGet = {
                         }
                     }
 
-                    const score = 50 + (wordMatches / queryWords.length) * 20; // 50-70 range
+                    const score =
+                        (50 + (wordMatches / queryWords.length) * 20) * popularityAdjustmentFactor; // 50-70 range
                     bestMatch = { matchType: 'description', relevanceScore: score };
                 }
 
@@ -167,7 +173,8 @@ const endpoint: ApiEndpointGet = {
                         }
                     }
 
-                    const score = 25 + (wordMatches / queryWords.length) * 15; // 25-40 range
+                    const score =
+                        (25 + (wordMatches / queryWords.length) * 15) * popularityAdjustmentFactor; // 25-40 range
                     bestMatch = { matchType: 'gameplayDescription', relevanceScore: score };
                 }
 
