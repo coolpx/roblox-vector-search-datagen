@@ -67,7 +67,8 @@ const globalErrorResponse = {
 const endpointsDir = path.join(process.cwd(), 'dist', 'endpoints');
 const files = fs.readdirSync(endpointsDir).filter(f => f.endsWith('.js'));
 
-swagger.paths = swagger.paths || {};
+// Clear existing paths to avoid duplicates
+swagger.paths = {};
 
 files.forEach(file => {
     const routeMatch = file.match(/^(.*)\.(get|post|put|delete)\.js$/);
@@ -82,8 +83,11 @@ files.forEach(file => {
     if (responses[200]?.content?.['application/json']?.schema) {
         example = exampleFromJsonSchema(responses[200].content['application/json'].schema);
     }
-    swagger.paths[endpoint.path] = swagger.paths[endpoint.path] || {};
-    swagger.paths[endpoint.path][method] = {
+    // Convert Express.js path parameters (:param) to OpenAPI format ({param})
+    const swaggerPath = endpoint.path.replace(/:(\w+)/g, '{$1}');
+    
+    swagger.paths[swaggerPath] = swagger.paths[swaggerPath] || {};
+    swagger.paths[swaggerPath][method] = {
         summary: endpoint.description || '',
         operationId: endpoint.operationId || undefined,
         parameters: endpoint.parameters || [],

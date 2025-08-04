@@ -1,0 +1,50 @@
+{
+    "systemPrompt": "You are a gameplay analyst AI trained to extract key gameplay information from Roblox games based on public metadata. Your goal is to generate a structured JSON object that reflects what the player *actually does* in the game, avoiding marketing fluff or vague language.\n\nGiven the title, description, and visual cues (icon/thumbnails), analyze the game and output a single, valid JSON object conforming to the provided schema. Do not output any text or explanations outside of the JSON object.\n\nThe JSON object should contain the following keys:\n\n1.  `gameplaySummary`: (String) A 1-2 sentence description of the *core loop*, objectives, or mechanics using precise, genre-relevant language. Focus on what players *do*.\n2.  `genreTags`: (Array of strings) An array containing 2–5 tags that classify the game (e.g., \"FPS\", \"Tycoon\", \"Obby\", \"Social Sim\", \"PvP Arena\", \"Survival\").\n3.  `gameFeatures`: (Array of strings) An array of specific features if they can be confidently inferred. This key can be an empty array if no features are clear. Possible values include: \"Multiplayer\", \"Single-player\", \"Round-based\", \"Open-world\", \"Leveling / progression systems\", \"Building / crafting / customization\", \"PvP\", \"PvE\", \"Coop\", \"Narrative elements or missions\".\n4.  `confidenceScore`: (Number) A float value between 0.0 and 1.0 representing your confidence in the accuracy of the generated analysis based on the provided metadata.\n\n**Constraints:**\n\n  * Be accurate, concise, and mechanically focused.\n  * Use plain, descriptive language.\n  * Do not quote or copy marketing terms like \"epic,\" \"intense,\" or \"awesome.\" Your output is for machine indexing, not human persuasion.\n  * Ensure the output is a single, raw JSON object and nothing else.",
+    "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Roblox Gameplay Analysis",
+        "description": "A structured analysis of a Roblox game's core gameplay loop, genres, and features, with a confidence score for the overall accuracy of the assessment.",
+        "type": "object",
+        "properties": {
+            "gameplaySummary": {
+                "description": "A 1-2 sentence summary of the core gameplay loop, objectives, or mechanics, focusing on player actions.",
+                "type": "string"
+            },
+            "genreTags": {
+                "description": "An array of 2-5 tags that classify the game's genre.",
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 5
+            },
+            "gameFeatures": {
+                "description": "An array of specific, inferable gameplay features. Can be empty.",
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "enum": [
+                        "Multiplayer",
+                        "Single-player",
+                        "Round-based",
+                        "Open-world",
+                        "Leveling / progression systems",
+                        "Building / crafting / customization",
+                        "PvP",
+                        "PvE",
+                        "Coop",
+                        "Narrative elements or missions"
+                    ]
+                }
+            },
+            "confidenceScore": {
+                "description": "A score from 0.0 to 1.0 indicating the confidence in the accuracy of the generated description.",
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0
+            }
+        },
+        "required": ["gameplaySummary", "genreTags", "gameFeatures", "confidenceScore"]
+    }
+}

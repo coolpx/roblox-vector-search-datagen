@@ -5,8 +5,11 @@ export const descriptionModel = 'google/gemma-3-4b';
 export const embeddingModel = 'CompendiumLabs/bge-large-en-v1.5-gguf/bge-large-en-v1.5-q8_0.gguf';
 export const openaiDescriptionModel = 'gpt-4o-mini';
 
-export async function loadSystemPrompt(name: 'gameplayAnalysis') {
-    return fs.readFileSync(`./prompts/${name}.txt`, 'utf-8');
+export async function loadSystemPrompt(
+    name: 'gameplayAnalysis' | 'localAnalysis',
+    fileExtension: 'json' | 'txt' = 'txt'
+) {
+    return fs.readFileSync(`./prompts/${name}.${fileExtension}`, 'utf-8');
 }
 
 export function wait(ms: number) {

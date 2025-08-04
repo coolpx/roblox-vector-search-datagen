@@ -5,6 +5,168 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/downloadDescriptions": {
+      "post": {
+        "summary": "Start a job to download descriptions for all games",
+        "operationId": "downloadDescriptions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Job started successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "jobId": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "jobId",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "jobId": "string",
+                    "message": "string"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Global error response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/downloadImages": {
+      "post": {
+        "summary": "Start a job to download icons and thumbnails for all games",
+        "operationId": "downloadImages",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Job started successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "jobId": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "jobId",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "jobId": "string",
+                    "message": "string"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Global error response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/games": {
       "get": {
         "summary": "Get the list of all games in the database.",
@@ -97,6 +259,921 @@
                       "gameplayDescription": null
                     }
                   ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Global error response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/commands/gather-games": {
+      "post": {
+        "summary": "Start a job to gather games from Roblox API",
+        "operationId": "gatherGames",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Job started successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "jobId": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "running",
+                            "completed",
+                            "failed"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "jobId",
+                        "message",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "jobId": "string",
+                    "message": "string",
+                    "status": "string"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Global error response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generateEmbeddings": {
+      "post": {
+        "summary": "Start a job to generate vector embeddings for all games",
+        "operationId": "generateEmbeddings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Job started successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "jobId": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "jobId",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "jobId": "string",
+                    "message": "string"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Global error response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generateGameplayDescriptions": {
+      "post": {
+        "summary": "Start a job to generate gameplay descriptions for all games using AI",
+        "operationId": "generateGameplayDescriptions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Job started successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "jobId": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "jobId",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "jobId": "string",
+                    "message": "string"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Global error response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "summary": "Get details of a specific job by ID",
+        "operationId": "getJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Job ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "command": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "running",
+                            "completed",
+                            "failed"
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "current": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "current",
+                            "total"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "result": {},
+                        "error": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "started_at": {
+                          "type": "string"
+                        },
+                        "completed_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "command",
+                        "status",
+                        "created_at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "string",
+                    "command": "string",
+                    "status": "string",
+                    "progress": {
+                      "current": 0,
+                      "total": 0,
+                      "message": "string"
+                    },
+                    "result": null,
+                    "error": null,
+                    "created_at": "string",
+                    "started_at": "string",
+                    "completed_at": "string"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Global error response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs": {
+      "get": {
+        "summary": "Get all jobs and their status with statistics",
+        "operationId": "getAllJobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of jobs to return",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of jobs to skip",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter jobs by status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "running",
+                "completed",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "command",
+            "in": "query",
+            "description": "Filter jobs by command",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of jobs with statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "jobs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "command": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "running",
+                                  "completed",
+                                  "failed"
+                                ]
+                              },
+                              "progress": {
+                                "type": "object",
+                                "properties": {
+                                  "current": {
+                                    "type": "number"
+                                  },
+                                  "total": {
+                                    "type": "number"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "current",
+                                  "total"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "result": {},
+                              "error": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "created_at": {
+                                "type": "string"
+                              },
+                              "started_at": {
+                                "type": "string"
+                              },
+                              "completed_at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "command",
+                              "status",
+                              "created_at"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "stats": {
+                          "type": "object",
+                          "properties": {
+                            "pending": {
+                              "type": "number"
+                            },
+                            "running": {
+                              "type": "number"
+                            },
+                            "completed": {
+                              "type": "number"
+                            },
+                            "failed": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "pending",
+                            "running",
+                            "completed",
+                            "failed",
+                            "total"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "jobs",
+                        "stats"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "jobs": [
+                      {
+                        "id": "string",
+                        "command": "string",
+                        "status": "string",
+                        "progress": {
+                          "current": 0,
+                          "total": 0,
+                          "message": "string"
+                        },
+                        "result": null,
+                        "error": null,
+                        "created_at": "string",
+                        "started_at": "string",
+                        "completed_at": "string"
+                      }
+                    ],
+                    "stats": {
+                      "pending": 0,
+                      "running": 0,
+                      "completed": 0,
+                      "failed": 0,
+                      "total": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Global error response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/similar-games/{universeId}": {
+      "get": {
+        "summary": "Find games similar to a given game based on embedding similarity.",
+        "operationId": "getSimilarGames",
+        "parameters": [
+          {
+            "name": "universeId",
+            "in": "path",
+            "description": "Universe ID of the game to find similar games for",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of similar games to return (default: 10)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of similar games sorted by similarity score (highest first)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "universeId": {
+                            "type": "number"
+                          },
+                          "rootPlaceId": {
+                            "type": "number"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "gameplayDescription": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "similarity": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "universeId",
+                          "rootPlaceId",
+                          "name",
+                          "description",
+                          "gameplayDescription",
+                          "similarity"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "universeId": 0,
+                      "rootPlaceId": 0,
+                      "name": "string",
+                      "description": null,
+                      "gameplayDescription": null,
+                      "similarity": 0
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Game not found or no embeddings available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Global error response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Error message"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "data": false
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "Get statistics about games data completeness",
+        "operationId": "getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Games data statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "totalGames": {
+                          "type": "number"
+                        },
+                        "gamesLackingIcons": {
+                          "type": "number"
+                        },
+                        "gamesLackingThumbnails": {
+                          "type": "number"
+                        },
+                        "gamesLackingDescriptions": {
+                          "type": "number"
+                        },
+                        "gamesLackingGameplayDescriptions": {
+                          "type": "number"
+                        },
+                        "gamesLackingEmbeddings": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "totalGames",
+                        "gamesLackingIcons",
+                        "gamesLackingThumbnails",
+                        "gamesLackingDescriptions",
+                        "gamesLackingGameplayDescriptions",
+                        "gamesLackingEmbeddings"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "totalGames": 0,
+                    "gamesLackingIcons": 0,
+                    "gamesLackingThumbnails": 0,
+                    "gamesLackingDescriptions": 0,
+                    "gamesLackingGameplayDescriptions": 0,
+                    "gamesLackingEmbeddings": 0
+                  }
                 }
               }
             }

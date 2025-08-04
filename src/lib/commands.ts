@@ -695,7 +695,10 @@ export const commands: Record<string, () => Promise<void>> = {
         );
 
         const model = await client.llm.model(descriptionModel);
-        const systemPrompt = await loadSystemPrompt('gameplayAnalysis');
+        const systemPromptData = JSON.parse(await loadSystemPrompt('localAnalysis', 'json')) as {
+            systemPrompt: string;
+            schema: {};
+        };
 
         for (let i = 0; i < gamesMissingGameplayDescriptions.length; i++) {
             const game = gamesMissingGameplayDescriptions[i];
@@ -724,19 +727,39 @@ export const commands: Record<string, () => Promise<void>> = {
                     )
                 );
 
-                const response = await model.respond([
+                const response = await model.respond(
+                    [
+                        {
+                            role: 'system',
+                            content: systemPromptData.systemPrompt
+                        },
+                        {
+                            role: 'user',
+                            content: `**Game Title**: ${game.name}\n\n**Game Description**: ${game.description}`,
+                            images: [iconPath, thumbnailPath]
+                        }
+                    ],
                     {
-                        role: 'system',
-                        content: systemPrompt
-                    },
-                    {
-                        role: 'user',
-                        content: `**Game Title**: ${game.name}\n\n**Game Description**: ${game.description}`,
-                        images: [iconPath, thumbnailPath]
+                        structured: {
+                            type: 'json',
+                            jsonSchema: systemPromptData.schema
+                        }
                     }
-                ]);
+                );
 
-                game.gameplayDescription = response.content;
+                const responseData = JSON.parse(response.content) as {
+                    gameplaySummary: string;
+                    genreTags: string[];
+                    gameFeatures: string[];
+                    confidenceScore: number;
+                };
+
+                const gameplayDescription =
+                    `**Gameplay Summary**: ${responseData.gameplaySummary}\n\n` +
+                    `**Genre Tags**: ${responseData.genreTags.join(', ')}\n\n` +
+                    `**Game Features**: ${responseData.gameFeatures.join(', ')}\n\n`;
+
+                game.gameplayDescription = gameplayDescription;
                 console.log(
                     `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Generated gameplay description for game: ${game.name}`
                 );
