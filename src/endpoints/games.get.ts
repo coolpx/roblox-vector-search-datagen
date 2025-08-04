@@ -16,6 +16,7 @@ const responseSchema = z.array(
 const endpoint: ApiEndpointGet = {
     method: 'get',
     path: '/games',
+    tag: 'Search',
     description: 'Get the list of all games in the database.',
     operationId: 'getGames',
     parameters: [

@@ -34,6 +34,7 @@ const responseSchema = z.object({
 const endpoint: ApiEndpointGet = {
     method: 'get',
     path: '/jobs',
+    tag: 'Job Management',
     description: 'Get all jobs and their status with statistics',
     operationId: 'getAllJobs',
     parameters: [

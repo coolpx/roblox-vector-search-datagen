@@ -483,7 +483,7 @@ export const commands = {
 
         // Only batch games that do not already have a description
         const gamesMissingDesc = games.filter(
-            g => g.description === undefined || g.description === ''
+            g => g.description === undefined || g.description === '' || g.playerCount === undefined
         );
         const gameMap = new Map(games.map(g => [g.universeId, g]));
         for (let i = 0; i < gamesMissingDesc.length; i += 50) {
@@ -522,6 +522,7 @@ export const commands = {
                     if (!game) continue;
                     // Add or update description
                     game.description = entry.description || '';
+                    game.playerCount = entry.playing || 0;
                     console.log(
                         `[${i + 1}-${i + batch.length}/${gamesMissingDesc.length}] Got description for ${universeId}`
                     );

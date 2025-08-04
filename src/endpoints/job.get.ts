@@ -23,6 +23,7 @@ const responseSchema = z.object({
 const endpoint: ApiEndpointGet = {
     method: 'get',
     path: '/jobs/:id',
+    tag: 'Job Management',
     description: 'Get details of a specific job by ID',
     operationId: 'getJob',
     parameters: [

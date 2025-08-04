@@ -18,6 +18,7 @@ const responseSchema = z.array(
 const endpoint: ApiEndpointGet = {
     method: 'get',
     path: '/search',
+    tag: 'Search',
     description:
         'Search games by text matching in title, description, and gameplay description with prioritized results.',
     operationId: 'searchGames',
@@ -32,7 +33,7 @@ const endpoint: ApiEndpointGet = {
         {
             name: 'limit',
             in: 'query',
-            description: 'Maximum number of games to return (default: 20)',
+            description: 'Maximum number of games to return (default: 10)',
             required: false,
             schema: { type: 'integer', minimum: 1, maximum: 100 }
         }
@@ -80,7 +81,7 @@ const endpoint: ApiEndpointGet = {
             }
 
             // get limit from query params
-            let limit = 20; // default limit
+            let limit = 10; // default limit
             if (req.query && typeof req.query.limit === 'string') {
                 const parsed = parseInt(req.query.limit, 10);
                 if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {

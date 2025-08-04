@@ -11,6 +11,7 @@ const responseSchema = z.object({
 const endpoint: ApiEndpointPost = {
     method: 'post',
     path: '/generate-embeddings',
+    tag: 'Commands',
     description: 'Start a job to generate vector embeddings for all games',
     operationId: 'generateEmbeddings',
     responses: {

@@ -2,7 +2,8 @@ import path from 'path';
 import fs from 'fs';
 import { z } from 'zod';
 import { apiResponse, apiSuccessResponse } from '../lib/apiResponseSchema';
-import { cosineSimilarity } from '../lib/tools';
+import { cosineSimilarity, embeddingModel } from '../lib/tools';
+import { LMStudioClient } from '@lmstudio/sdk';
 
 const responseSchema = z.array(
     z.object({
@@ -17,36 +18,38 @@ const responseSchema = z.array(
 
 const endpoint: ApiEndpointGet = {
     method: 'get',
-    path: '/vector-search/:universeId',
-    description: 'Find games similar to a given game based on embedding similarity.',
-    operationId: 'getSimilarGames',
+    path: '/vector-search',
+    tag: 'Search',
+    description: 'Find games similar by semantic search.',
+    operationId: 'vectorSearchGames',
     parameters: [
         {
-            name: 'universeId',
-            in: 'path',
-            description: 'Universe ID of the game to find similar games for',
+            name: 'q',
+            in: 'query',
+            description: 'Search query text',
             required: true,
-            schema: { type: 'integer' }
+            schema: { type: 'string', minLength: 1 }
         },
         {
             name: 'limit',
             in: 'query',
-            description: 'Maximum number of similar games to return (default: 10)',
+            description: 'Maximum number of games to return (default: 10)',
             required: false,
             schema: { type: 'integer', minimum: 1, maximum: 100 }
         }
     ],
     responses: {
         200: {
-            description: 'A list of similar games sorted by similarity score (highest first)',
+            description:
+                'A list of games matching the search query, prioritized by match type (title > description > gameplay description)',
             content: {
                 'application/json': {
                     schema: z.toJSONSchema(apiSuccessResponse(responseSchema))
                 }
             }
         },
-        404: {
-            description: 'Game not found or no embeddings available',
+        400: {
+            description: 'Invalid search query',
             content: {
                 'application/json': {
                     schema: z.toJSONSchema(
@@ -60,17 +63,20 @@ const endpoint: ApiEndpointGet = {
         }
     },
     response: apiResponse(responseSchema),
-    urlParams: z.object({
-        universeId: z.string()
-    }),
+    urlParams: z
+        .object({
+            q: z.string().optional(),
+            limit: z.string().optional()
+        })
+        .optional(),
     handle: async (req, res) => {
         try {
-            // get universe ID from path params
-            const universeId = parseInt(req.params.universeId, 10);
-            if (isNaN(universeId)) {
+            // get search query and limit from query params
+            const query = req.query.q;
+            if (typeof query !== 'string' || query.trim().length === 0) {
                 return {
                     success: false,
-                    message: 'Invalid universe ID'
+                    message: 'Invalid search query'
                 };
             }
 
@@ -96,23 +102,18 @@ const endpoint: ApiEndpointGet = {
                 fs.readFileSync(embeddingsPath, 'utf-8')
             );
 
-            // check if target game has embeddings
-            if (!(universeId in embeddings)) {
-                return {
-                    success: false,
-                    message: `No embeddings found for game with universeId ${universeId}`
-                };
-            }
+            // embed query
+            const client = new LMStudioClient();
 
-            const targetEmbedding = embeddings[universeId];
+            const model = await client.embedding.model(embeddingModel);
+            const queryEmbedding = (await model.embed(query)).embedding;
 
             // calculate similarity scores for all other games
             const similarGames: { universeId: number; similarity: number }[] = [];
             for (const [id, embedding] of Object.entries(embeddings)) {
                 const gameId = parseInt(id);
-                if (gameId === universeId) continue; // skip the target game itself
 
-                const similarity = cosineSimilarity(targetEmbedding, embedding);
+                const similarity = cosineSimilarity(queryEmbedding, embedding);
                 similarGames.push({ universeId: gameId, similarity });
             }
 

@@ -12,6 +12,7 @@ const responseSchema = z.object({
 const endpoint: ApiEndpointPost = {
     method: 'post',
     path: '/gather-games',
+    tag: 'Commands',
     description: 'Start a job to gather games from Roblox API',
     operationId: 'gatherGames',
     responses: {

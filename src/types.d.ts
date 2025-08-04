@@ -24,6 +24,7 @@ declare global {
     type ApiEndpointBase = {
         method: 'get' | 'post' | 'put' | 'delete';
         path: string;
+        tag: string;
         description: string;
         handle: (req: Request, res: Response) => Promise<any>;
         operationId?: string;
@@ -61,6 +62,7 @@ declare global {
         name: string;
         description?: string | null;
         gameplayDescription?: string | null;
+        playerCount?: number;
     };
 
     type GameSort = {

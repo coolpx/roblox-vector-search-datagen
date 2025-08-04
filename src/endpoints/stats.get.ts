@@ -15,7 +15,8 @@ const responseSchema = z.object({
 const endpoint: ApiEndpointGet = {
     method: 'get',
     path: '/stats',
-    description: 'Get statistics about games data completeness',
+    tag: 'Stats',
+    description: 'Get statistics about game data completeness',
     operationId: 'getStats',
     responses: {
         200: {

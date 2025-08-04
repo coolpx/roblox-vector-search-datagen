@@ -11,6 +11,7 @@ const responseSchema = z.object({
 const endpoint: ApiEndpointPost = {
     method: 'post',
     path: '/generate-gameplay-descriptions',
+    tag: 'Commands',
     description: 'Start a job to generate gameplay descriptions for all games using AI',
     operationId: 'generateGameplayDescriptions',
     responses: {

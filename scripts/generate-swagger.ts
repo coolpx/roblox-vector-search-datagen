@@ -42,8 +42,7 @@ function exampleFromJsonSchema(schema: any): any {
 }
 
 // Load base swagger.json
-const swaggerPath = path.join(process.cwd(), 'swagger.json');
-const swagger = JSON.parse(fs.readFileSync(swaggerPath, 'utf-8'));
+const swagger: { openapi: string; paths: Record<string, any> } = { openapi: '3.0.0', paths: {} };
 
 // Define global error response
 const globalErrorResponse = {
@@ -91,6 +90,7 @@ files.forEach(file => {
         summary: endpoint.description || '',
         operationId: endpoint.operationId || undefined,
         parameters: endpoint.parameters || [],
+        tags: [endpoint.tag],
         responses: {
             ...responses,
             200: {
@@ -107,5 +107,5 @@ files.forEach(file => {
     };
 });
 
-fs.writeFileSync(swaggerPath, JSON.stringify(swagger, null, 2));
+fs.writeFileSync(path.join(process.cwd(), 'swagger.json'), JSON.stringify(swagger, null, 2));
 console.log('Swagger docs generated to swagger.json');

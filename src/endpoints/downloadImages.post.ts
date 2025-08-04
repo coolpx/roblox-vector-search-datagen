@@ -11,6 +11,7 @@ const responseSchema = z.object({
 const endpoint: ApiEndpointPost = {
     method: 'post',
     path: '/download-images',
+    tag: 'Commands',
     description: 'Start a job to download icons and thumbnails for all games',
     operationId: 'downloadImages',
     responses: {
