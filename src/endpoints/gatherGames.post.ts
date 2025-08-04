@@ -11,7 +11,7 @@ const responseSchema = z.object({
 
 const endpoint: ApiEndpointPost = {
     method: 'post',
-    path: '/commands/gather-games',
+    path: '/gather-games',
     description: 'Start a job to gather games from Roblox API',
     operationId: 'gatherGames',
     responses: {
@@ -34,8 +34,8 @@ const endpoint: ApiEndpointPost = {
             setImmediate(async () => {
                 await jobManager.runJob(jobId, async () => {
                     // Run the gatherGames command
-                    await commands.gatherGames();
-                    return { message: 'Games gathered successfully' };
+                    const gamesAdded = await commands.gatherGames();
+                    return { message: `Gathered ${gamesAdded} games` };
                 });
             });
 

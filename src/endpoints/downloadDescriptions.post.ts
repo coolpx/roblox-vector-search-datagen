@@ -10,7 +10,7 @@ const responseSchema = z.object({
 
 const endpoint: ApiEndpointPost = {
     method: 'post',
-    path: '/downloadDescriptions',
+    path: '/download-descriptions',
     description: 'Start a job to download descriptions for all games',
     operationId: 'downloadDescriptions',
     responses: {

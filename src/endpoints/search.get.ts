@@ -18,7 +18,8 @@ const responseSchema = z.array(
 const endpoint: ApiEndpointGet = {
     method: 'get',
     path: '/search',
-    description: 'Search games by text matching in title, description, and gameplay description with prioritized results.',
+    description:
+        'Search games by text matching in title, description, and gameplay description with prioritized results.',
     operationId: 'searchGames',
     parameters: [
         {
@@ -38,7 +39,8 @@ const endpoint: ApiEndpointGet = {
     ],
     responses: {
         200: {
-            description: 'A list of games matching the search query, prioritized by match type (title > description > gameplay description)',
+            description:
+                'A list of games matching the search query, prioritized by match type (title > description > gameplay description)',
             content: {
                 'application/json': {
                     schema: z.toJSONSchema(apiSuccessResponse(responseSchema))
@@ -60,10 +62,12 @@ const endpoint: ApiEndpointGet = {
         }
     },
     response: apiResponse(responseSchema),
-    urlParams: z.object({
-        q: z.string().optional(),
-        limit: z.string().optional()
-    }).optional(),
+    urlParams: z
+        .object({
+            q: z.string().optional(),
+            limit: z.string().optional()
+        })
+        .optional(),
     handle: async (req, res) => {
         try {
             // get search query from query params
@@ -115,20 +119,24 @@ const endpoint: ApiEndpointGet = {
                 if (game.name && game.name.toLowerCase().includes(normalizedQuery)) {
                     const isExactMatch = game.name.toLowerCase() === normalizedQuery;
                     const startsWithQuery = game.name.toLowerCase().startsWith(normalizedQuery);
-                    
+
                     let score = 100; // base score for title match
                     if (isExactMatch) score += 50;
                     else if (startsWithQuery) score += 25;
-                    
+
                     bestMatch = { matchType: 'title', relevanceScore: score };
                 }
 
                 // 2. Description match (medium priority)
-                if (!bestMatch && game.description && typeof game.description === 'string' && 
-                    game.description.toLowerCase().includes(normalizedQuery)) {
+                if (
+                    !bestMatch &&
+                    game.description &&
+                    typeof game.description === 'string' &&
+                    game.description.toLowerCase().includes(normalizedQuery)
+                ) {
                     const descriptionWords = game.description.toLowerCase().split(/\s+/);
                     const queryWords = normalizedQuery.split(/\s+/);
-                    
+
                     // Calculate word-based relevance
                     let wordMatches = 0;
                     for (const queryWord of queryWords) {
@@ -136,17 +144,20 @@ const endpoint: ApiEndpointGet = {
                             wordMatches++;
                         }
                     }
-                    
+
                     const score = 50 + (wordMatches / queryWords.length) * 20; // 50-70 range
                     bestMatch = { matchType: 'description', relevanceScore: score };
                 }
 
                 // 3. Gameplay description match (lowest priority)
-                if (!bestMatch && game.gameplayDescription && 
-                    game.gameplayDescription.toLowerCase().includes(normalizedQuery)) {
+                if (
+                    !bestMatch &&
+                    game.gameplayDescription &&
+                    game.gameplayDescription.toLowerCase().includes(normalizedQuery)
+                ) {
                     const gameplayWords = game.gameplayDescription.toLowerCase().split(/\s+/);
                     const queryWords = normalizedQuery.split(/\s+/);
-                    
+
                     // Calculate word-based relevance
                     let wordMatches = 0;
                     for (const queryWord of queryWords) {
@@ -154,7 +165,7 @@ const endpoint: ApiEndpointGet = {
                             wordMatches++;
                         }
                     }
-                    
+
                     const score = 25 + (wordMatches / queryWords.length) * 15; // 25-40 range
                     bestMatch = { matchType: 'gameplayDescription', relevanceScore: score };
                 }

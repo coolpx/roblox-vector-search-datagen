@@ -17,7 +17,7 @@ const responseSchema = z.array(
 
 const endpoint: ApiEndpointGet = {
     method: 'get',
-    path: '/similar-games/:universeId',
+    path: '/vector-search/:universeId',
     description: 'Find games similar to a given game based on embedding similarity.',
     operationId: 'getSimilarGames',
     parameters: [
@@ -111,7 +111,7 @@ const endpoint: ApiEndpointGet = {
             for (const [id, embedding] of Object.entries(embeddings)) {
                 const gameId = parseInt(id);
                 if (gameId === universeId) continue; // skip the target game itself
-                
+
                 const similarity = cosineSimilarity(targetEmbedding, embedding);
                 similarGames.push({ universeId: gameId, similarity });
             }

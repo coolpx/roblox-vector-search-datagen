@@ -11,7 +11,12 @@ async function main() {
         }
         process.exit(1);
     }
-    await commands[cmd]();
+    if (!(cmd in commands)) {
+        console.error(`Command "${cmd}" is not implemented.`);
+        process.exit(1);
+    }
+    const command = cmd as keyof typeof commands;
+    await commands[command]();
 }
 
 main();

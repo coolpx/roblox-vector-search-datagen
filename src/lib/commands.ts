@@ -13,9 +13,9 @@ import {
     cosineSimilarity
 } from './tools';
 
-export const commands: Record<string, () => Promise<void>> = {
+export const commands = {
     // data gathering
-    async gatherGames() {
+    async gatherGames(): Promise<number> {
         // get sorts
         console.log('Getting game sorts');
 
@@ -107,6 +107,9 @@ export const commands: Record<string, () => Promise<void>> = {
         console.log(
             `Wrote ${uniqueGames.length} games to ${currentGameListPath} (${uniqueGames.length - existingGames.length} new games added)`
         );
+
+        // Return the number of games added
+        return uniqueGames.length - existingGames.length;
     },
     async gatherGamesRolimons() {
         console.log('Gathering games from Rolimons...');
@@ -677,12 +680,13 @@ export const commands: Record<string, () => Promise<void>> = {
         console.log(`Excluded (no description): ${excludedNoDescription}`);
         console.log(`Excluded (already have gameplay descriptions): ${excludedHasGameplayDesc}`);
 
-        // Only batch games that do not already have a description
+        // Only process games that do not already have a description
         const gamesMissingGameplayDescriptions = games.filter(
             game =>
                 game.description &&
                 (!game.gameplayDescription || game.gameplayDescription.trim() === '')
         );
+
         console.log(`Games to generate: ${gamesMissingGameplayDescriptions.length}`);
 
         if (gamesMissingGameplayDescriptions.length === 0) {

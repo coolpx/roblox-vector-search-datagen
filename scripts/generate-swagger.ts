@@ -85,7 +85,7 @@ files.forEach(file => {
     }
     // Convert Express.js path parameters (:param) to OpenAPI format ({param})
     const swaggerPath = endpoint.path.replace(/:(\w+)/g, '{$1}');
-    
+
     swagger.paths[swaggerPath] = swagger.paths[swaggerPath] || {};
     swagger.paths[swaggerPath][method] = {
         summary: endpoint.description || '',
