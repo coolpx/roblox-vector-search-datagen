@@ -362,7 +362,9 @@ export const commands = {
             console.log('Gathering universe IDs with unauthenticated fallback endpoint...');
 
             for (const [index, [placeId, gameData]] of Object.entries(gamesList).entries()) {
-                console.log(`[${index + 1}/${total}] Gathering universe ID for place ID ${placeId}`);
+                console.log(
+                    `[${index + 1}/${total}] Gathering universe ID for place ID ${placeId}`
+                );
                 const universeId = await fetchUniverseIdWithFallback(placeId);
                 if (universeId) {
                     games.push({
@@ -445,6 +447,41 @@ export const commands = {
         const total = games.length;
         const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
         const batchSize = 50;
+        const downloadImageWithRetry = async (
+            imageUrl: string,
+            outputPath: string,
+            rangeLabel: string,
+            imageType: string,
+            universeId: number
+        ) => {
+            let imgRes: Awaited<ReturnType<typeof fetch>> | undefined;
+            let retryImg = false;
+            do {
+                retryImg = false;
+                try {
+                    imgRes = await fetch(imageUrl);
+                    if (imgRes.status === 429) {
+                        console.warn(
+                            `${rangeLabel} ${imageType} image rate limited (429). Waiting 30 seconds before retrying...`
+                        );
+                        await wait(30000);
+                        retryImg = true;
+                    }
+                } catch (e) {
+                    console.error(
+                        `${rangeLabel} Failed to fetch ${imageType} for ${universeId}:`,
+                        e
+                    );
+                    return;
+                }
+            } while (retryImg);
+
+            if (imgRes && imgRes.ok) {
+                const buffer = Buffer.from(await imgRes.arrayBuffer());
+                await fs.promises.writeFile(outputPath, buffer);
+                console.log(`${rangeLabel} Downloaded ${imageType} for ${universeId}`);
+            }
+        };
         // ICONS: Only batch games that do not already have icon.webp
         const gamesMissingIcon = games.filter(game => {
             const imageDir = path.join(
@@ -489,60 +526,44 @@ export const commands = {
             } while (retry);
             if (iconRes && iconRes.ok) {
                 const iconData = await iconRes.json();
-                for (const entry of iconData.data) {
-                    const universeId = entry.targetId;
-                    const game = batchMap.get(universeId);
-                    if (!game) continue;
-                    const imageDir = path.join(
-                        process.cwd(),
-                        'data',
-                        'games',
-                        'images',
-                        String(universeId)
-                    );
-                    fs.mkdirSync(imageDir, { recursive: true });
-                    const iconPath = path.join(imageDir, 'icon.webp');
-                    if (fs.existsSync(iconPath)) {
-                        console.log(
-                            `[${i + 1}-${i + batch.length}/${gamesMissingIcon.length}] Icon already exists for ${universeId}`
-                        );
-                        continue;
-                    }
-                    if (entry.imageUrl && entry.state === 'Completed') {
-                        let imgRes;
-                        let retryImg = false;
-                        do {
-                            retryImg = false;
-                            try {
-                                imgRes = await fetch(entry.imageUrl);
-                                if (imgRes.status === 429) {
-                                    console.warn(
-                                        `[${i + 1}-${i + batch.length}/${gamesMissingIcon.length}] Icon image rate limited (429). Waiting 30 seconds before retrying...`
-                                    );
-                                    await wait(30000);
-                                    retryImg = true;
-                                }
-                            } catch (e) {
-                                console.error(
-                                    `[${i + 1}-${i + batch.length}/${gamesMissingIcon.length}] Failed to fetch icon image for ${universeId}:`,
-                                    e
-                                );
-                                break;
-                            }
-                        } while (retryImg);
-                        if (imgRes && imgRes.ok) {
-                            const buffer = Buffer.from(await imgRes.arrayBuffer());
-                            fs.writeFileSync(iconPath, buffer);
-                            console.log(
-                                `[${i + 1}-${i + batch.length}/${gamesMissingIcon.length}] Downloaded icon for ${universeId}`
+                const rangeLabel = `[${i + 1}-${i + batch.length}/${gamesMissingIcon.length}]`;
+                await Promise.all(
+                    iconData.data.map(
+                        async (entry: { targetId: number; imageUrl?: string; state?: string }) => {
+                            const universeId = entry.targetId;
+                            const game = batchMap.get(universeId);
+                            if (!game) return;
+                            const imageDir = path.join(
+                                process.cwd(),
+                                'data',
+                                'games',
+                                'images',
+                                String(universeId)
                             );
+                            fs.mkdirSync(imageDir, { recursive: true });
+                            const iconPath = path.join(imageDir, 'icon.webp');
+                            if (fs.existsSync(iconPath)) {
+                                console.log(
+                                    `[${i + 1}-${i + batch.length}/${gamesMissingIcon.length}] Icon already exists for ${universeId}`
+                                );
+                                return;
+                            }
+                            if (entry.imageUrl && entry.state === 'Completed') {
+                                await downloadImageWithRetry(
+                                    entry.imageUrl,
+                                    iconPath,
+                                    rangeLabel,
+                                    'icon',
+                                    universeId
+                                );
+                            } else {
+                                console.warn(
+                                    `[${i + 1}-${i + batch.length}/${gamesMissingIcon.length}] No valid icon for ${universeId}`
+                                );
+                            }
                         }
-                    } else {
-                        console.warn(
-                            `[${i + 1}-${i + batch.length}/${gamesMissingIcon.length}] No valid icon for ${universeId}`
-                        );
-                    }
-                }
+                    )
+                );
             }
         }
         // THUMBNAILS: Only batch games that do not already have thumbnail.webp
@@ -589,61 +610,48 @@ export const commands = {
             } while (retry);
             if (thumbRes && thumbRes.ok) {
                 const thumbData = await thumbRes.json();
-                for (const entry of thumbData.data) {
-                    const universeId = entry.universeId;
-                    const game = batchMap.get(universeId);
-                    if (!game) continue;
-                    const imageDir = path.join(
-                        process.cwd(),
-                        'data',
-                        'games',
-                        'images',
-                        String(universeId)
-                    );
-                    fs.mkdirSync(imageDir, { recursive: true });
-                    const thumbPath = path.join(imageDir, 'thumbnail.webp');
-                    if (fs.existsSync(thumbPath)) {
-                        console.log(
-                            `[${i + 1}-${i + batch.length}/${gamesMissingThumb.length}] Thumbnail already exists for ${universeId}`
-                        );
-                        continue;
-                    }
-                    const thumb = entry.thumbnails?.[0];
-                    if (thumb && thumb.imageUrl && thumb.state === 'Completed') {
-                        let imgRes;
-                        let retryImg = false;
-                        do {
-                            retryImg = false;
-                            try {
-                                imgRes = await fetch(thumb.imageUrl);
-                                if (imgRes.status === 429) {
-                                    console.warn(
-                                        `[${i + 1}-${i + batch.length}/${gamesMissingThumb.length}] Thumbnail image rate limited (429). Waiting 30 seconds before retrying...`
-                                    );
-                                    await wait(30000);
-                                    retryImg = true;
-                                }
-                            } catch (e) {
-                                console.error(
-                                    `[${i + 1}-${i + batch.length}/${gamesMissingThumb.length}] Failed to fetch thumbnail image for ${universeId}:`,
-                                    e
-                                );
-                                break;
-                            }
-                        } while (retryImg);
-                        if (imgRes && imgRes.ok) {
-                            const buffer = Buffer.from(await imgRes.arrayBuffer());
-                            fs.writeFileSync(thumbPath, buffer);
-                            console.log(
-                                `[${i + 1}-${i + batch.length}/${gamesMissingThumb.length}] Downloaded thumbnail for ${universeId}`
+                const rangeLabel = `[${i + 1}-${i + batch.length}/${gamesMissingThumb.length}]`;
+                await Promise.all(
+                    thumbData.data.map(
+                        async (entry: {
+                            universeId: number;
+                            thumbnails?: { imageUrl?: string; state?: string }[];
+                        }) => {
+                            const universeId = entry.universeId;
+                            const game = batchMap.get(universeId);
+                            if (!game) return;
+                            const imageDir = path.join(
+                                process.cwd(),
+                                'data',
+                                'games',
+                                'images',
+                                String(universeId)
                             );
+                            fs.mkdirSync(imageDir, { recursive: true });
+                            const thumbPath = path.join(imageDir, 'thumbnail.webp');
+                            if (fs.existsSync(thumbPath)) {
+                                console.log(
+                                    `[${i + 1}-${i + batch.length}/${gamesMissingThumb.length}] Thumbnail already exists for ${universeId}`
+                                );
+                                return;
+                            }
+                            const thumb = entry.thumbnails?.[0];
+                            if (thumb && thumb.imageUrl && thumb.state === 'Completed') {
+                                await downloadImageWithRetry(
+                                    thumb.imageUrl,
+                                    thumbPath,
+                                    rangeLabel,
+                                    'thumbnail',
+                                    universeId
+                                );
+                            } else {
+                                console.warn(
+                                    `[${i + 1}-${i + batch.length}/${gamesMissingThumb.length}] No valid thumbnail for ${universeId}`
+                                );
+                            }
                         }
-                    } else {
-                        console.warn(
-                            `[${i + 1}-${i + batch.length}/${gamesMissingThumb.length}] No valid thumbnail for ${universeId}`
-                        );
-                    }
-                }
+                    )
+                );
             }
         }
     },
