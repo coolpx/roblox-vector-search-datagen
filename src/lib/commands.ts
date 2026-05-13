@@ -7,6 +7,7 @@ import { LMStudioClient } from '@lmstudio/sdk';
 import {
     descriptionModel,
     embeddingModel,
+    gameplayDescriptionConcurrency,
     openaiDescriptionModel,
     loadSystemPrompt,
     wait,
@@ -919,6 +920,101 @@ export const commands = {
             console.log(`${rank} | ${nameFormatted} | ${idFormatted} | ${simFormatted} | ${link}`);
         }
     },
+    async search() {
+        const args = process.argv.slice(3);
+        let limit = 10;
+        const queryParts: string[] = [];
+
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+            if (arg === '--limit' || arg === '-n') {
+                const parsed = parseInt(args[i + 1] || '', 10);
+                if (!isNaN(parsed) && parsed > 0) {
+                    limit = Math.min(parsed, 100);
+                }
+                i++;
+                continue;
+            }
+
+            const limitMatch = arg.match(/^--limit=(\d+)$/);
+            if (limitMatch) {
+                limit = Math.min(parseInt(limitMatch[1], 10), 100);
+                continue;
+            }
+
+            queryParts.push(arg);
+        }
+
+        const query = queryParts.join(' ').trim();
+
+        if (!query) {
+            console.error(
+                'Please provide search text. Example: npm run interactive -- search "obby with pets" --limit 10'
+            );
+            return;
+        }
+
+        const embeddingsPath = path.join(process.cwd(), 'data', 'games', 'embeddings.json');
+        if (!fs.existsSync(embeddingsPath)) {
+            console.error('embeddings.json not found. Run generateEmbeddings first.');
+            return;
+        }
+
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        if (!fs.existsSync(gamesPath)) {
+            console.error('games.json not found. Run gatherGames first.');
+            return;
+        }
+
+        const embeddings: Record<number, number[]> = JSON.parse(
+            fs.readFileSync(embeddingsPath, 'utf-8')
+        );
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+        const gameMap = new Map(games.map(game => [game.universeId, game]));
+
+        const client = new LMStudioClient();
+        const model = await client.embedding.model(embeddingModel);
+        const queryEmbedding = (await model.embed(query)).embedding;
+
+        const searchResults: { universeId: number; similarity: number }[] = [];
+        for (const [id, embedding] of Object.entries(embeddings)) {
+            if (!Array.isArray(embedding) || embedding.length !== queryEmbedding.length) {
+                continue;
+            }
+
+            searchResults.push({
+                universeId: parseInt(id, 10),
+                similarity: cosineSimilarity(queryEmbedding, embedding)
+            });
+        }
+
+        searchResults.sort((a, b) => b.similarity - a.similarity);
+
+        console.log(`\nTop ${Math.min(limit, searchResults.length)} games for "${query}":\n`);
+        console.log(
+            'Rank | Game Name                                      | Universe ID | Similarity | Link'
+        );
+        console.log(
+            '-----|------------------------------------------------|-------------|------------|-----------------------------------------------------'
+        );
+
+        for (let i = 0; i < Math.min(limit, searchResults.length); i++) {
+            const gameId = searchResults[i].universeId;
+            const similarity = searchResults[i].similarity.toFixed(4);
+            const game = gameMap.get(gameId);
+            const gameName = game?.name || 'Unknown Game';
+            const placeId = game?.rootPlaceId || 'N/A';
+            const link = placeId !== 'N/A' ? `https://roblox.com/games/${placeId}` : 'N/A';
+
+            const rank = `${i + 1}`.padEnd(4);
+            const nameFormatted =
+                gameName.length > 46 ? gameName.substring(0, 43) + '...' : gameName.padEnd(46);
+            const idFormatted = gameId.toString().padEnd(11);
+            const simFormatted = similarity.padEnd(10);
+
+            console.log(`${rank} | ${nameFormatted} | ${idFormatted} | ${simFormatted} | ${link}`);
+        }
+    },
     async clearGameplayDescriptions() {
         // Clear gameplay descriptions from games.json
         const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
@@ -985,78 +1081,97 @@ export const commands = {
             schema: {};
         };
 
-        for (let i = 0; i < gamesMissingGameplayDescriptions.length; i++) {
-            const game = gamesMissingGameplayDescriptions[i];
-            console.log(
-                `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Generating gameplay description for game: ${game.name}`
+        let lastSavedGeneratedCount = 0;
+        for (
+            let batchStart = 0;
+            batchStart < gamesMissingGameplayDescriptions.length;
+            batchStart += gameplayDescriptionConcurrency
+        ) {
+            const batch = gamesMissingGameplayDescriptions.slice(
+                batchStart,
+                batchStart + gameplayDescriptionConcurrency
             );
-            try {
-                const iconPath = await client.files.prepareImage(
-                    path.join(
-                        process.cwd(),
-                        'data',
-                        'games',
-                        'images',
-                        String(game.universeId),
-                        'icon.webp'
-                    )
-                );
-                const thumbnailPath = await client.files.prepareImage(
-                    path.join(
-                        process.cwd(),
-                        'data',
-                        'games',
-                        'images',
-                        String(game.universeId),
-                        'thumbnail.webp'
-                    )
-                );
 
-                const response = await model.respond(
-                    [
-                        {
-                            role: 'system',
-                            content: systemPromptData.systemPrompt
-                        },
-                        {
-                            role: 'user',
-                            content: `**Game Title**: ${game.name}\n\n**Game Description**: ${game.description}`,
-                            images: [iconPath, thumbnailPath]
-                        }
-                    ],
-                    {
-                        structured: {
-                            type: 'json',
-                            jsonSchema: systemPromptData.schema
-                        }
+            await Promise.all(
+                batch.map(async (game, batchIndex) => {
+                    const i = batchStart + batchIndex;
+                    console.log(
+                        `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Generating gameplay description for game: ${game.name}`
+                    );
+                    try {
+                        const iconPath = await client.files.prepareImage(
+                            path.join(
+                                process.cwd(),
+                                'data',
+                                'games',
+                                'images',
+                                String(game.universeId),
+                                'icon.webp'
+                            )
+                        );
+                        const thumbnailPath = await client.files.prepareImage(
+                            path.join(
+                                process.cwd(),
+                                'data',
+                                'games',
+                                'images',
+                                String(game.universeId),
+                                'thumbnail.webp'
+                            )
+                        );
+
+                        const response = await model.respond(
+                            [
+                                {
+                                    role: 'system',
+                                    content: systemPromptData.systemPrompt
+                                },
+                                {
+                                    role: 'user',
+                                    content: `**Game Title**: ${game.name}\n\n**Game Description**: ${game.description}`,
+                                    images: [iconPath, thumbnailPath]
+                                }
+                            ],
+                            {
+                                structured: {
+                                    type: 'json',
+                                    jsonSchema: systemPromptData.schema
+                                }
+                            }
+                        );
+
+                        const responseData = JSON.parse(response.content) as {
+                            gameplaySummary: string;
+                            genreTags: string[];
+                            gameFeatures: string[];
+                            confidenceScore: number;
+                        };
+
+                        const gameplayDescription =
+                            `**Gameplay Summary**: ${responseData.gameplaySummary}\n\n` +
+                            `**Genre Tags**: ${responseData.genreTags.join(', ')}\n\n` +
+                            `**Game Features**: ${responseData.gameFeatures.join(', ')}\n\n`;
+
+                        game.gameplayDescription = gameplayDescription;
+                        console.log(
+                            `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Generated gameplay description for game: ${game.name}`
+                        );
+                    } catch (error) {
+                        console.error(
+                            `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Failed to generate gameplay description for game: ${game.name}`,
+                            error
+                        );
                     }
-                );
+                })
+            );
 
-                const responseData = JSON.parse(response.content) as {
-                    gameplaySummary: string;
-                    genreTags: string[];
-                    gameFeatures: string[];
-                    confidenceScore: number;
-                };
-
-                const gameplayDescription =
-                    `**Gameplay Summary**: ${responseData.gameplaySummary}\n\n` +
-                    `**Genre Tags**: ${responseData.genreTags.join(', ')}\n\n` +
-                    `**Game Features**: ${responseData.gameFeatures.join(', ')}\n\n`;
-
-                game.gameplayDescription = gameplayDescription;
-                console.log(
-                    `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Generated gameplay description for game: ${game.name}`
-                );
-            } catch (error) {
-                console.error(
-                    `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Failed to generate gameplay description for game: ${game.name}`,
-                    error
-                );
-            }
-            if ((i + 1) % 10 === 0) {
+            const generatedCount = batchStart + batch.length;
+            if (generatedCount - lastSavedGeneratedCount >= 10) {
                 fs.writeFileSync(gamesPath, JSON.stringify(games, null, 4));
-                console.log(`Saved progress after ${i + 1} gameplay descriptions to ${gamesPath}`);
+                lastSavedGeneratedCount = generatedCount;
+                console.log(
+                    `Saved progress after ${generatedCount} gameplay descriptions to ${gamesPath}`
+                );
             }
         }
         // final save

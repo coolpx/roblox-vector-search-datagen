@@ -1,9 +1,10 @@
 // Shared tools extracted from interactive.ts
 import fs from 'fs';
 
-export const descriptionModel = 'google/gemma-3-4b';
-export const embeddingModel = 'CompendiumLabs/bge-large-en-v1.5-gguf/bge-large-en-v1.5-q8_0.gguf';
-export const openaiDescriptionModel = 'gpt-4o-mini';
+export const descriptionModel = 'google/gemma-4-e2b';
+export const embeddingModel = 'unsloth/embeddinggemma-300m-GGUF';
+export const openaiDescriptionModel = 'gpt-5.4-mini';
+export const gameplayDescriptionConcurrency = 2;
 
 export async function loadSystemPrompt(
     name: 'gameplayAnalysis' | 'localAnalysis',
