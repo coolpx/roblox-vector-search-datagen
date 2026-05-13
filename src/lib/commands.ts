@@ -74,6 +74,12 @@ type RobloxPlaceDetail = {
     description?: string;
 };
 
+type RobloxGameDetail = {
+    id: number;
+    description?: string;
+    playing?: number;
+};
+
 export const commands = {
     // data gathering
     async gatherGames(): Promise<number> {
@@ -662,24 +668,33 @@ export const commands = {
             console.error('games.json not found. Run gatherGames first.');
             return;
         }
-        let games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
-        // summary of inclusion/exclusion breakdown
-        const totalGames = games.length;
-        const excludedNoDescription = games.filter(
-            g =>
-                !g.description || (typeof g.description === 'string' && g.description.trim() === '')
-        ).length;
-        const excludedHasGameplayDesc = games.filter(
-            g => g.gameplayDescription && g.gameplayDescription.trim() !== ''
-        ).length;
-        console.log(`Total games: ${totalGames}`);
-        console.log(`Excluded (no description): ${excludedNoDescription}`);
-        console.log(`Excluded (already have gameplay descriptions): ${excludedHasGameplayDesc}`);
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+        const hasDescription = (game: Game) =>
+            typeof game.description === 'string' && game.description.trim() !== '';
+        const needsDescription = (game: Game) =>
+            game.description === undefined ||
+            (typeof game.description === 'string' && game.description.trim() === '');
+        const needsPlayerCount = (game: Game) => game.playerCount === undefined;
 
-        // Only batch games that do not already have a description
+        const totalGames = games.length;
+        const missingDescriptions = games.filter(needsDescription).length;
+        const missingPlayerCounts = games.filter(needsPlayerCount).length;
+        const withDescriptions = games.filter(hasDescription).length;
+        console.log(`Total games: ${totalGames}`);
+        console.log(`Games with descriptions: ${withDescriptions}`);
+        console.log(`Games missing descriptions: ${missingDescriptions}`);
+        console.log(`Games missing player counts: ${missingPlayerCounts}`);
+
         const gamesMissingDesc = games.filter(
-            g => g.description === undefined || g.description === '' || g.playerCount === undefined
+            game => needsDescription(game) || needsPlayerCount(game)
         );
+        if (gamesMissingDesc.length === 0) {
+            console.log('All games already have descriptions or known blank descriptions and player counts.');
+            return;
+        }
+
+        console.log(`Fetching details for ${gamesMissingDesc.length} games...`);
+
         const gameMap = new Map(games.map(g => [g.universeId, g]));
         for (let i = 0; i < gamesMissingDesc.length; i += 50) {
             const batch = gamesMissingDesc.slice(i, i + 50);
@@ -707,32 +722,53 @@ export const commands = {
                     break;
                 }
             } while (retry);
-            if (descRes && descRes.ok) {
-                const descData = await descRes.json();
-                // Track which universeIds were returned (as strings for robust comparison)
-                const returnedIds = new Set(descData.data.map((entry: any) => String(entry.id)));
-                for (const entry of descData.data) {
-                    const universeId = entry.id;
-                    const game = gameMap.get(universeId);
-                    if (!game) continue;
-                    // Add or update description
-                    game.description = entry.description || '';
-                    game.playerCount = entry.playing || 0;
-                    console.log(
-                        `[${i + 1}-${i + batch.length}/${gamesMissingDesc.length}] Got description for ${universeId}`
-                    );
+
+            const rangeLabel = `[${i + 1}-${i + batch.length}/${gamesMissingDesc.length}]`;
+            if (!descRes) {
+                console.warn(`${rangeLabel} No response for description batch.`);
+                continue;
+            }
+
+            if (!descRes.ok) {
+                const responseBody = await descRes.text();
+                console.warn(
+                    `${rangeLabel} Failed to fetch description batch: ${descRes.status} ${descRes.statusText} ${responseBody}`
+                );
+                continue;
+            }
+
+            const descData = (await descRes.json()) as { data?: RobloxGameDetail[] };
+            if (!Array.isArray(descData.data)) {
+                console.warn(`${rangeLabel} Description batch response missing data array.`);
+                continue;
+            }
+
+            const returnedIds = new Set(descData.data.map(entry => String(entry.id)));
+            for (const entry of descData.data) {
+                const universeId = entry.id;
+                const game = gameMap.get(universeId);
+                if (!game) continue;
+
+                const description =
+                    typeof entry.description === 'string' && entry.description.trim() !== ''
+                        ? entry.description
+                        : null;
+                game.description = description;
+                game.playerCount = typeof entry.playing === 'number' ? entry.playing : 0;
+                console.log(`${rangeLabel} Got details for ${universeId}`);
+            }
+
+            for (const universeId of batchUniverseIds) {
+                if (returnedIds.has(String(universeId))) {
+                    continue;
                 }
-                // Mark missing universeIds as null (compare as strings)
-                for (const universeId of batchUniverseIds) {
-                    if (!returnedIds.has(String(universeId))) {
-                        const game = gameMap.get(universeId);
-                        if (game) {
-                            game.description = null;
-                            console.warn(
-                                `[${i + 1}-${i + batch.length}/${gamesMissingDesc.length}] No description found for ${universeId}, marking as null.`
-                            );
-                        }
+
+                const game = gameMap.get(universeId);
+                if (game) {
+                    if (needsDescription(game)) {
+                        game.description = null;
                     }
+                    console.warn(`${rangeLabel} No game details returned for ${universeId}.`);
                 }
             }
         }
