@@ -80,6 +80,53 @@ type RobloxGameDetail = {
     playing?: number;
 };
 
+async function fetchRobloxGameDetailsBatch(
+    universeIds: number[],
+    rangeLabel: string
+): Promise<RobloxGameDetail[] | undefined> {
+    let retry = false;
+    let descRes;
+    do {
+        retry = false;
+        const url = new URL('https://games.roblox.com/v1/games');
+        url.searchParams.set('universeIds', universeIds.join(','));
+        try {
+            descRes = await fetch(url.toString());
+            if (descRes.status === 429) {
+                console.warn(
+                    `${rangeLabel} Description API rate limited (429). Waiting 30 seconds before retrying...`
+                );
+                await wait(30000);
+                retry = true;
+            }
+        } catch (e) {
+            console.error(`${rangeLabel} Failed to fetch description batch:`, e);
+            return undefined;
+        }
+    } while (retry);
+
+    if (!descRes) {
+        console.warn(`${rangeLabel} No response for description batch.`);
+        return undefined;
+    }
+
+    if (!descRes.ok) {
+        const responseBody = await descRes.text();
+        console.warn(
+            `${rangeLabel} Failed to fetch description batch: ${descRes.status} ${descRes.statusText} ${responseBody}`
+        );
+        return undefined;
+    }
+
+    const descData = (await descRes.json()) as { data?: RobloxGameDetail[] };
+    if (!Array.isArray(descData.data)) {
+        console.warn(`${rangeLabel} Description batch response missing data array.`);
+        return undefined;
+    }
+
+    return descData.data;
+}
+
 export const commands = {
     // data gathering
     async gatherGames(): Promise<number> {
@@ -689,7 +736,9 @@ export const commands = {
             game => needsDescription(game) || needsPlayerCount(game)
         );
         if (gamesMissingDesc.length === 0) {
-            console.log('All games already have descriptions or known blank descriptions and player counts.');
+            console.log(
+                'All games already have descriptions or known blank descriptions and player counts.'
+            );
             return;
         }
 
@@ -699,52 +748,14 @@ export const commands = {
         for (let i = 0; i < gamesMissingDesc.length; i += 50) {
             const batch = gamesMissingDesc.slice(i, i + 50);
             const batchUniverseIds = batch.map(g => g.universeId);
-            let retry = false;
-            let descRes;
-            do {
-                retry = false;
-                const url = new URL('https://games.roblox.com/v1/games');
-                url.searchParams.set('universeIds', batchUniverseIds.join(','));
-                try {
-                    descRes = await fetch(url.toString());
-                    if (descRes.status === 429) {
-                        console.warn(
-                            `[${i + 1}-${i + batch.length}/${gamesMissingDesc.length}] Description API rate limited (429). Waiting 30 seconds before retrying...`
-                        );
-                        await wait(30000);
-                        retry = true;
-                    }
-                } catch (e) {
-                    console.error(
-                        `[${i + 1}-${i + batch.length}/${gamesMissingDesc.length}] Failed to fetch description batch:`,
-                        e
-                    );
-                    break;
-                }
-            } while (retry);
-
             const rangeLabel = `[${i + 1}-${i + batch.length}/${gamesMissingDesc.length}]`;
-            if (!descRes) {
-                console.warn(`${rangeLabel} No response for description batch.`);
+            const gameDetails = await fetchRobloxGameDetailsBatch(batchUniverseIds, rangeLabel);
+            if (!gameDetails) {
                 continue;
             }
 
-            if (!descRes.ok) {
-                const responseBody = await descRes.text();
-                console.warn(
-                    `${rangeLabel} Failed to fetch description batch: ${descRes.status} ${descRes.statusText} ${responseBody}`
-                );
-                continue;
-            }
-
-            const descData = (await descRes.json()) as { data?: RobloxGameDetail[] };
-            if (!Array.isArray(descData.data)) {
-                console.warn(`${rangeLabel} Description batch response missing data array.`);
-                continue;
-            }
-
-            const returnedIds = new Set(descData.data.map(entry => String(entry.id)));
-            for (const entry of descData.data) {
+            const returnedIds = new Set(gameDetails.map(entry => String(entry.id)));
+            for (const entry of gameDetails) {
                 const universeId = entry.id;
                 const game = gameMap.get(universeId);
                 if (!game) continue;
@@ -775,6 +786,44 @@ export const commands = {
         // write updated games to file
         fs.writeFileSync(gamesPath, JSON.stringify(Array.from(gameMap.values()), null, 4));
         console.log(`Updated descriptions in ${gamesPath}`);
+    },
+    async pruneGames() {
+        const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
+        if (!fs.existsSync(gamesPath)) {
+            console.error('games.json not found. Run gatherGames first.');
+            return;
+        }
+
+        const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
+        const gameMap = new Map(games.map(g => [g.universeId, g]));
+
+        console.log(`Checking ${games.length} games for valid Roblox game details...`);
+
+        let prunedCount = 0;
+        for (let i = 0; i < games.length; i += 50) {
+            const batch = games.slice(i, i + 50);
+            const batchUniverseIds = batch.map(g => g.universeId);
+            const rangeLabel = `[${i + 1}-${i + batch.length}/${games.length}]`;
+            const gameDetails = await fetchRobloxGameDetailsBatch(batchUniverseIds, rangeLabel);
+            if (!gameDetails) {
+                continue;
+            }
+
+            const returnedIds = new Set(gameDetails.map(entry => String(entry.id)));
+            for (const universeId of batchUniverseIds) {
+                if (returnedIds.has(String(universeId))) {
+                    continue;
+                }
+
+                if (gameMap.delete(universeId)) {
+                    prunedCount++;
+                    console.log(`${rangeLabel} Pruned ${universeId}`);
+                }
+            }
+        }
+
+        fs.writeFileSync(gamesPath, JSON.stringify(Array.from(gameMap.values()), null, 4));
+        console.log(`Pruned ${prunedCount} games from ${gamesPath}`);
     },
     // data utilities
     async countGames() {

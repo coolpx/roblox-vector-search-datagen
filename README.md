@@ -97,6 +97,10 @@ Fetches descriptions and player counts from `games.roblox.com/v1/games` for game
 
 Updates `description` and `playerCount` in `data/games/games.json`.
 
+### `pruneGames`
+
+Checks all games against `games.roblox.com/v1/games` and removes any games that are not returned by the API.
+
 ### `countGames`
 
 Prints counts for:
