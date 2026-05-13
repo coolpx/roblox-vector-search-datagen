@@ -13,6 +13,67 @@ import {
     cosineSimilarity
 } from './tools';
 
+function parseEnvFile(envPath: string): Record<string, string> {
+    if (!fs.existsSync(envPath)) {
+        return {};
+    }
+
+    const values: Record<string, string> = {};
+    const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) {
+            continue;
+        }
+
+        const separatorIndex = trimmed.indexOf('=');
+        if (separatorIndex === -1) {
+            continue;
+        }
+
+        const key = trimmed.slice(0, separatorIndex).trim();
+        let value = trimmed.slice(separatorIndex + 1).trim();
+
+        if (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))
+        ) {
+            value = value.slice(1, -1);
+        }
+
+        values[key] = value;
+    }
+
+    return values;
+}
+
+function getRoblosecurityCookie(): string | undefined {
+    const envValues = parseEnvFile(path.join(process.cwd(), '.env'));
+    const roblosecurity =
+        envValues.ROBLOSECURITY ||
+        envValues.roblosecurity ||
+        envValues['.ROBLOSECURITY'] ||
+        process.env.ROBLOSECURITY ||
+        process.env.roblosecurity ||
+        process.env['.ROBLOSECURITY'];
+
+    if (!roblosecurity) {
+        return undefined;
+    }
+
+    return roblosecurity.includes('.ROBLOSECURITY=')
+        ? roblosecurity
+        : `.ROBLOSECURITY=${roblosecurity}`;
+}
+
+type RobloxPlaceDetail = {
+    placeId: number;
+    universeId: number;
+    name?: string;
+    description?: string;
+};
+
 export const commands = {
     // data gathering
     async gatherGames(): Promise<number> {
@@ -113,6 +174,14 @@ export const commands = {
     },
     async gatherGamesRolimons() {
         console.log('Gathering games from Rolimons...');
+        const roblosecurityCookie = getRoblosecurityCookie();
+        if (roblosecurityCookie) {
+            console.log('Loaded ROBLOSECURITY cookie for Roblox place detail requests.');
+        } else {
+            console.warn(
+                'No ROBLOSECURITY found in .env or process.env. Falling back to unauthenticated universe ID lookup.'
+            );
+        }
 
         // download games page from rolimons
         const rolimonsResponse = await fetch('https://rolimons.com/games');
@@ -133,19 +202,14 @@ export const commands = {
             throw new Error('Failed to parse games list from Rolimons HTML');
         }
 
-        console.log(
-            `Found ${Object.keys(gamesList).length} games on Rolimons, gathering universe IDs...`
-        );
+        console.log(`Found ${Object.keys(gamesList).length} games on Rolimons.`);
 
-        // get universe IDs from place IDs
         const games: Game[] = [];
-        let i = 0;
-        const total = Object.keys(gamesList).length;
+        const placeIds = Object.keys(gamesList);
+        const total = placeIds.length;
         const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-        for (const [placeId, gameData] of Object.entries(gamesList)) {
-            console.log(`[${i++}/${total}] Gathering universe ID for place ID ${placeId}`);
-
+        async function fetchUniverseIdWithFallback(placeId: string): Promise<number | undefined> {
             let retry = false;
             let universeIdResponse;
             do {
@@ -156,17 +220,14 @@ export const commands = {
                     );
                     if (universeIdResponse.status === 429) {
                         console.warn(
-                            `[${i}/${total}] Universe ID API rate limited (429) for place ID ${placeId}. Waiting 30 seconds before retrying...`
+                            `Universe ID API rate limited (429) for place ID ${placeId}. Waiting 30 seconds before retrying...`
                         );
                         await wait(30000);
                         retry = true;
                     }
                 } catch (e) {
-                    console.error(
-                        `[${i}/${total}] Failed to fetch universe ID for place ID ${placeId}:`,
-                        e
-                    );
-                    break;
+                    console.error(`Failed to fetch universe ID for place ID ${placeId}:`, e);
+                    return undefined;
                 }
             } while (retry);
 
@@ -174,19 +235,144 @@ export const commands = {
                 console.warn(
                     `Failed to fetch universe ID for place ID ${placeId}: ${universeIdResponse?.statusText || 'Network error'}`
                 );
-                continue;
+                return undefined;
             }
 
             const universeData = await universeIdResponse.json();
-            const universeId = universeData.universeId;
-            if (universeId) {
-                games.push({
-                    universeId,
-                    rootPlaceId: parseInt(placeId),
-                    name: gameData.name
-                });
-            } else {
-                console.warn(`No universe ID found for place ID ${placeId}`);
+            return universeData.universeId;
+        }
+
+        if (roblosecurityCookie) {
+            const placeDetailsCookie = roblosecurityCookie;
+            const batchSize = 50;
+            console.log(`Gathering Roblox place details in batches of ${batchSize}...`);
+
+            async function requestPlaceDetails(
+                batchPlaceIds: string[]
+            ): Promise<Response | undefined> {
+                const placeIdParams = batchPlaceIds.map(placeId => `placeIds=${placeId}`).join('&');
+                const url = `https://games.roblox.com/v1/games/multiget-place-details?${placeIdParams}`;
+
+                let retry = false;
+                let placeDetailsResponse;
+                do {
+                    retry = false;
+                    try {
+                        placeDetailsResponse = await fetch(url, {
+                            headers: {
+                                Cookie: placeDetailsCookie
+                            }
+                        });
+                        if (placeDetailsResponse.status === 429) {
+                            console.warn(
+                                `Place details API rate limited (429). Waiting 30 seconds before retrying...`
+                            );
+                            await wait(30000);
+                            retry = true;
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch place details batch:', e);
+                        return undefined;
+                    }
+                } while (retry);
+
+                return placeDetailsResponse;
+            }
+
+            async function getPlaceDetailsBatch(
+                batchPlaceIds: string[],
+                rangeLabel: string
+            ): Promise<RobloxPlaceDetail[]> {
+                const placeDetailsResponse = await requestPlaceDetails(batchPlaceIds);
+
+                if (placeDetailsResponse?.ok) {
+                    return (await placeDetailsResponse.json()) as RobloxPlaceDetail[];
+                }
+
+                if (placeDetailsResponse?.status === 400 && batchPlaceIds.length > 1) {
+                    const responseBody = await placeDetailsResponse.text();
+                    console.warn(
+                        `${rangeLabel} Batch returned 400. Splitting to isolate bad place IDs. ${responseBody}`
+                    );
+                    const midpoint = Math.ceil(batchPlaceIds.length / 2);
+                    const firstHalf = await getPlaceDetailsBatch(
+                        batchPlaceIds.slice(0, midpoint),
+                        rangeLabel
+                    );
+                    const secondHalf = await getPlaceDetailsBatch(
+                        batchPlaceIds.slice(midpoint),
+                        rangeLabel
+                    );
+                    return firstHalf.concat(secondHalf);
+                }
+
+                const responseBody = placeDetailsResponse
+                    ? await placeDetailsResponse.text()
+                    : 'Network error';
+                console.warn(
+                    `${rangeLabel} Failed to fetch place details: ${placeDetailsResponse?.status || 'No status'} ${placeDetailsResponse?.statusText || 'Network error'} ${responseBody}`
+                );
+
+                if (batchPlaceIds.length === 1) {
+                    const placeId = batchPlaceIds[0];
+                    console.warn(`Falling back to universe ID lookup for place ID ${placeId}`);
+                    const universeId = await fetchUniverseIdWithFallback(placeId);
+                    return universeId
+                        ? [
+                              {
+                                  placeId: parseInt(placeId),
+                                  universeId
+                              }
+                          ]
+                        : [];
+                }
+
+                return [];
+            }
+
+            for (let i = 0; i < placeIds.length; i += batchSize) {
+                const batchPlaceIds = placeIds.slice(i, i + batchSize);
+                const rangeLabel = `[${i + 1}-${Math.min(i + batchSize, total)}/${total}]`;
+                console.log(`${rangeLabel} Gathering place details`);
+
+                const placeDetails = await getPlaceDetailsBatch(batchPlaceIds, rangeLabel);
+
+                for (const placeDetail of placeDetails) {
+                    const placeId = placeDetail.placeId;
+                    const gameData = gamesList[placeId];
+                    if (!gameData) {
+                        console.warn(`No Rolimons game data found for place ID ${placeId}`);
+                        continue;
+                    }
+
+                    if (!placeDetail.universeId) {
+                        console.warn(`No universe ID found for place ID ${placeId}`);
+                        continue;
+                    }
+
+                    games.push({
+                        universeId: placeDetail.universeId,
+                        rootPlaceId: placeId,
+                        name: placeDetail.name || gameData.name,
+                        description: placeDetail.description || ''
+                    });
+                }
+            }
+        } else {
+            console.log('Gathering universe IDs with unauthenticated fallback endpoint...');
+
+            for (const [index, [placeId, gameData]] of Object.entries(gamesList).entries()) {
+                console.log(`[${index + 1}/${total}] Gathering universe ID for place ID ${placeId}`);
+                const universeId = await fetchUniverseIdWithFallback(placeId);
+                if (universeId) {
+                    games.push({
+                        universeId,
+                        rootPlaceId: parseInt(placeId),
+                        name: gameData.name
+                    });
+                } else {
+                    console.warn(`No universe ID found for place ID ${placeId}`);
+                }
             }
         }
 
@@ -220,7 +406,8 @@ export const commands = {
                     mergedGames.push({
                         ...existingGame,
                         name: newGame.name,
-                        rootPlaceId: newGame.rootPlaceId
+                        rootPlaceId: newGame.rootPlaceId,
+                        description: newGame.description ?? existingGame.description
                     });
                 }
             } else {
