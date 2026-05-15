@@ -9,8 +9,6 @@ import { search } from './commands/search';
 import { clearGameplayDescriptions } from './commands/clearGameplayDescriptions';
 import { generateGameplayDescriptions } from './commands/generateGameplayDescriptions';
 import { generateEmbeddings } from './commands/generateEmbeddings';
-import { prepareOpenAIGameplayDescriptionBatch } from './commands/prepareOpenAIGameplayDescriptionBatch';
-import { importOpenAIGameplayDescriptions } from './commands/importOpenAIGameplayDescriptions';
 
 export const commands = {
     gatherGames,
@@ -24,6 +22,4 @@ export const commands = {
     clearGameplayDescriptions,
     generateGameplayDescriptions,
     generateEmbeddings,
-    prepareOpenAIGameplayDescriptionBatch,
-    importOpenAIGameplayDescriptions
 };

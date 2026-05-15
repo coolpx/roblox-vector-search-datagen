@@ -37,8 +37,6 @@ pnpm run api
 - `data/games/images/<universeId>/icon.webp`: downloaded game icon.
 - `data/games/images/<universeId>/thumbnail.webp`: downloaded game thumbnail.
 - `data/games/embeddings.json`: gameplay-description embeddings keyed by universe ID.
-- `data/games/openai_batches/*.jsonl`: OpenAI batch input files.
-- `data/games/openai_batch_output/*.jsonl`: OpenAI batch output files to import.
 
 ## Commands
 
@@ -97,16 +95,6 @@ Model names and prompts live in `src/lib/tools.ts` and `prompts/`.
 Uses local LM Studio embedding model to embed generated gameplay descriptions.
 
 Writes `data/games/embeddings.json`.
-
-### `prepareOpenAIGameplayDescriptionBatch`
-
-Creates OpenAI Batch API JSONL requests for games with descriptions but no gameplay descriptions.
-
-Writes files into `data/games/openai_batches/`.
-
-### `importOpenAIGameplayDescriptions`
-
-Reads OpenAI batch output JSONL files from `data/games/openai_batch_output/` and imports generated gameplay descriptions into `data/games/games.json`.
 
 ## Environment
 
