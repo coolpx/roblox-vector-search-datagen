@@ -3,7 +3,7 @@ import path from 'path';
 
 export async function downloadImages() {
     // Download icon and primary thumbnail for each game
-	console.log("Checking for missing images");
+    console.log('Checking for missing images');
     const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
     if (!fs.existsSync(gamesPath)) {
         console.error('games.json not found. Run gatherGames first.');
@@ -44,7 +44,7 @@ export async function downloadImages() {
             console.log(`${rangeLabel} Downloaded ${imageType} for ${universeId}`);
         }
     };
-    // ICONS: Only batch games that do not already have icon.webp
+    // ICONS: Only batch games that do not already have icon.png
     const gamesMissingIcon = games.filter(game => {
         const imageDir = path.join(
             process.cwd(),
@@ -53,10 +53,10 @@ export async function downloadImages() {
             'images',
             String(game.universeId)
         );
-        const iconPath = path.join(imageDir, 'icon.webp');
+        const iconPath = path.join(imageDir, 'icon.png');
         return !fs.existsSync(iconPath);
     });
-	console.log(`Found ${gamesMissingIcon.length} games missing icons`);
+    console.log(`Found ${gamesMissingIcon.length} games missing icons`);
     for (let i = 0; i < gamesMissingIcon.length; i += batchSize) {
         const batch = gamesMissingIcon.slice(i, i + batchSize);
         const batchUniverseIds = batch.map(g => g.universeId);
@@ -68,7 +68,7 @@ export async function downloadImages() {
             const url = new URL('https://thumbnails.roblox.com/v1/games/icons');
             url.searchParams.set('universeIds', batchUniverseIds.join(','));
             url.searchParams.set('size', '512x512');
-            url.searchParams.set('format', 'WebP');
+            url.searchParams.set('format', 'Png');
             url.searchParams.set('isCircular', 'false');
             try {
                 iconRes = await fetch(url.toString());
@@ -104,7 +104,7 @@ export async function downloadImages() {
                             String(universeId)
                         );
                         fs.mkdirSync(imageDir, { recursive: true });
-                        const iconPath = path.join(imageDir, 'icon.webp');
+                        const iconPath = path.join(imageDir, 'icon.png');
                         if (fs.existsSync(iconPath)) {
                             console.log(
                                 `[${i + 1}-${i + batch.length}/${gamesMissingIcon.length}] Icon already exists for ${universeId}`
@@ -129,7 +129,7 @@ export async function downloadImages() {
             );
         }
     }
-    // THUMBNAILS: Only batch games that do not already have thumbnail.webp
+    // THUMBNAILS: Only batch games that do not already have thumbnail.png
     const gamesMissingThumb = games.filter(game => {
         const imageDir = path.join(
             process.cwd(),
@@ -138,10 +138,10 @@ export async function downloadImages() {
             'images',
             String(game.universeId)
         );
-        const thumbPath = path.join(imageDir, 'thumbnail.webp');
+        const thumbPath = path.join(imageDir, 'thumbnail.png');
         return !fs.existsSync(thumbPath);
     });
-	console.log(`Found ${gamesMissingThumb.length} games missing thumbnails`);
+    console.log(`Found ${gamesMissingThumb.length} games missing thumbnails`);
     for (let i = 0; i < gamesMissingThumb.length; i += batchSize) {
         const batch = gamesMissingThumb.slice(i, i + batchSize);
         const batchUniverseIds = batch.map(g => g.universeId);
@@ -153,7 +153,7 @@ export async function downloadImages() {
             const url = new URL('https://thumbnails.roblox.com/v1/games/multiget/thumbnails');
             url.searchParams.set('universeIds', batchUniverseIds.join(','));
             url.searchParams.set('size', '768x432');
-            url.searchParams.set('format', 'WebP');
+            url.searchParams.set('format', 'Png');
             url.searchParams.set('isCircular', 'false');
             try {
                 thumbRes = await fetch(url.toString());
@@ -192,7 +192,7 @@ export async function downloadImages() {
                             String(universeId)
                         );
                         fs.mkdirSync(imageDir, { recursive: true });
-                        const thumbPath = path.join(imageDir, 'thumbnail.webp');
+                        const thumbPath = path.join(imageDir, 'thumbnail.png');
                         if (fs.existsSync(thumbPath)) {
                             console.log(
                                 `[${i + 1}-${i + batch.length}/${gamesMissingThumb.length}] Thumbnail already exists for ${universeId}`

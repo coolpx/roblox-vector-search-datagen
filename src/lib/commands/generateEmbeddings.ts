@@ -1,14 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { LMStudioClient } from '@lmstudio/sdk';
-import { embeddingModel } from '../tools';
+import 'dotenv/config';
 
 export async function generateEmbeddings() {
-    // load embedding model
-    const client = new LMStudioClient();
-
-    const model = await client.embedding.model(embeddingModel);
-
     // load games
     const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
     if (!fs.existsSync(gamesPath)) {
@@ -64,7 +58,18 @@ export async function generateEmbeddings() {
         );
         try {
             const descriptions = batch.map(game => game.gameplayDescription!);
-            const embeddings = await model.embed(descriptions);
+            const embeddingsResponse = await fetch(process.env.EMBEDDING_BASE_URL! + "/embeddings", {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					model: process.env.EMBEDDING_MODEL,
+					input: descriptions,
+				}),
+			});
+            const embeddingsData = await embeddingsResponse.json();
+            const embeddings = embeddingsData.data;
             for (let j = 0; j < batch.length; j++) {
                 const game = batch[j];
                 const embedding = embeddings[j];

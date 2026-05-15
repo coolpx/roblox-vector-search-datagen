@@ -31,11 +31,15 @@ API server:
 pnpm run api
 ```
 
+## Environment Configuration
+
+`.env.example` is an example environment config with all values. ROBLOSECURITY is optional. It is used by `gatherGamesRolimons` for Roblox place detail lookups and descriptions. Without it, the command falls back to unauthenticated universe ID lookups which are much slower. DESCRIPTION_CONCURRENCY is also optional and sets the number of simultaneous requests to make to the model used to generate gameplay descriptions.
+
 ## Data Files
 
 - `data/games/games.json`: canonical game list and metadata.
-- `data/games/images/<universeId>/icon.webp`: downloaded game icon.
-- `data/games/images/<universeId>/thumbnail.webp`: downloaded game thumbnail.
+- `data/games/images/<universeId>/icon.png`: downloaded game icon.
+- `data/games/images/<universeId>/thumbnail.png`: downloaded game thumbnail.
 - `data/games/embeddings.json`: gameplay-description embeddings keyed by universe ID.
 
 ## Commands
@@ -50,7 +54,7 @@ Writes and merges into `data/games/games.json`. Existing fields such as descript
 
 Collects place IDs and names from `https://rolimons.com/games`.
 
-When `.env` or process env contains `ROBLOSECURITY`, it uses a Roblox API that requires authentication to fetch universe IDs in batches. If no cookie is provided it will still work, albeit much more slowly.
+When the environment contains `ROBLOSECURITY`, it uses a Roblox API that requires authentication to fetch universe IDs in batches. If no cookie is provided it will still work, albeit much more slowly.
 
 ### `downloadImages`
 
@@ -86,25 +90,15 @@ Removes generated `gameplayDescription` fields from `data/games/games.json`.
 
 ### `generateGameplayDescriptions`
 
-Uses local LM Studio models and downloaded images to generate structured gameplay descriptions for games that have Roblox descriptions but lack gameplay descriptions.
+Uses an LLM to generate structured gameplay descriptions for games that have Roblox descriptions but lack gameplay descriptions based on their titles, descriptions, icons, and thumbnails.
 
-Model names and prompts live in `src/lib/tools.ts` and `prompts/`.
+Model names and prompts live in `.env` and `prompts/`.
 
 ### `generateEmbeddings`
 
-Uses local LM Studio embedding model to embed generated gameplay descriptions.
+Uses an embedding model via an OpenAI-compatible API to embed generated gameplay descriptions.
 
 Writes `data/games/embeddings.json`.
-
-## Environment
-
-Optional `.env` values:
-
-```env
-ROBLOSECURITY=your_cookie_value
-```
-
-`gatherGamesRolimons` uses this cookie for Roblox place detail lookups and descriptions. Without it, command falls back to unauthenticated universe ID lookups.
 
 ## Build Notes
 

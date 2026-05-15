@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { LMStudioClient } from '@lmstudio/sdk';
-import { embeddingModel, cosineSimilarity } from '../tools';
+import { cosineSimilarity } from '../tools';
+import 'dotenv/config';
 
 export async function search() {
     const args = process.argv.slice(3);
@@ -55,9 +55,18 @@ export async function search() {
     const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
     const gameMap = new Map(games.map(game => [game.universeId, game]));
 
-    const client = new LMStudioClient();
-    const model = await client.embedding.model(embeddingModel);
-    const queryEmbedding = (await model.embed(query)).embedding;
+    const queryEmbeddingResponse = await fetch(process.env.EMBEDDING_BASE_URL!, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: process.env.EMBEDDING_MODEL,
+            input: query
+        })
+    });
+    const queryEmbeddingData = await queryEmbeddingResponse.json();
+    const queryEmbedding = queryEmbeddingData.data[0].embedding;
 
     const searchResults: { universeId: number; similarity: number }[] = [];
     for (const [id, embedding] of Object.entries(embeddings)) {

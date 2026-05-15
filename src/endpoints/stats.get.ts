@@ -53,7 +53,7 @@ const endpoint: ApiEndpointGet = {
                     'images',
                     String(game.universeId)
                 );
-                const iconPath = path.join(imageDir, 'icon.webp');
+                const iconPath = path.join(imageDir, 'icon.png');
                 return !fs.existsSync(iconPath);
             }).length;
 
@@ -66,7 +66,7 @@ const endpoint: ApiEndpointGet = {
                     'images',
                     String(game.universeId)
                 );
-                const thumbPath = path.join(imageDir, 'thumbnail.webp');
+                const thumbPath = path.join(imageDir, 'thumbnail.png');
                 return !fs.existsSync(thumbPath);
             }).length;
 

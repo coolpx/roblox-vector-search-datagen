@@ -1,11 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { LMStudioClient } from '@lmstudio/sdk';
-import { descriptionModel, gameplayDescriptionConcurrency, loadSystemPrompt } from '../tools';
+import { loadSystemPrompt } from '../tools';
+import { json } from 'zod';
 
 export async function generateGameplayDescriptions() {
-    const client = new LMStudioClient();
-
     const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
     if (!fs.existsSync(gamesPath)) {
         console.error('games.json not found. Run gatherGames first.');
@@ -43,7 +41,6 @@ export async function generateGameplayDescriptions() {
         `Generating gameplay descriptions for ${gamesMissingGameplayDescriptions.length} games...`
     );
 
-    const model = await client.llm.model(descriptionModel);
     const systemPromptData = JSON.parse(await loadSystemPrompt('localAnalysis', 'json')) as {
         systemPrompt: string;
         schema: {};
@@ -53,11 +50,11 @@ export async function generateGameplayDescriptions() {
     for (
         let batchStart = 0;
         batchStart < gamesMissingGameplayDescriptions.length;
-        batchStart += gameplayDescriptionConcurrency
+        batchStart += parseInt(process.env.GAMEPLAY_DESCRIPTION_CONCURRENCY || '1')
     ) {
         const batch = gamesMissingGameplayDescriptions.slice(
             batchStart,
-            batchStart + gameplayDescriptionConcurrency
+            batchStart + parseInt(process.env.GAMEPLAY_DESCRIPTION_CONCURRENCY || '1')
         );
 
         await Promise.all(
@@ -67,48 +64,84 @@ export async function generateGameplayDescriptions() {
                     `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Generating gameplay description for game: ${game.name}`
                 );
                 try {
-                    const iconPath = await client.files.prepareImage(
-                        path.join(
-                            process.cwd(),
-                            'data',
-                            'games',
-                            'images',
-                            String(game.universeId),
-                            'icon.webp'
-                        )
+                    const iconPath = path.join(
+                        process.cwd(),
+                        'data',
+                        'games',
+                        'images',
+                        String(game.universeId),
+                        'icon.png'
                     );
-                    const thumbnailPath = await client.files.prepareImage(
-                        path.join(
-                            process.cwd(),
-                            'data',
-                            'games',
-                            'images',
-                            String(game.universeId),
-                            'thumbnail.webp'
-                        )
-                    );
+                    if (!fs.existsSync(iconPath)) {
+                        console.warn(
+                            `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Icon not found for game: ${game.name}`
+                        );
+                        return;
+                    }
+                    const iconBase64 = `data:image/png;base64,${fs.readFileSync(iconPath, 'base64')}`;
 
-                    const response = await model.respond(
-                        [
-                            {
-                                role: 'system',
-                                content: systemPromptData.systemPrompt
-                            },
-                            {
-                                role: 'user',
-                                content: `**Game Title**: ${game.name}\n\n**Game Description**: ${game.description}`,
-                                images: [iconPath, thumbnailPath]
-                            }
-                        ],
+                    const thumbnailPath = path.join(
+                        process.cwd(),
+                        'data',
+                        'games',
+                        'images',
+                        String(game.universeId),
+                        'thumbnail.png'
+                    );
+                    if (!fs.existsSync(thumbnailPath)) {
+                        console.warn(
+                            `[${i + 1}/${gamesMissingGameplayDescriptions.length}] Thumbnail not found for game: ${game.name}`
+                        );
+                        return;
+                    }
+                    const thumbnailBase64 = `data:image/png;base64,${fs.readFileSync(thumbnailPath, 'base64')}`;
+
+                    const response = await fetch(
+                        process.env.DESCRIPTION_BASE_URL! + '/chat/completions',
                         {
-                            structured: {
-                                type: 'json',
-                                jsonSchema: systemPromptData.schema
-                            }
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                model: process.env.DESCRIPTION_MODEL!,
+                                messages: [
+                                    {
+                                        role: 'system',
+                                        content: systemPromptData.systemPrompt
+                                    },
+                                    {
+                                        role: 'user',
+                                        content: [
+                                            {
+                                                type: 'text',
+                                                text: `**Game Title**: ${game.name}\n\n**Game Description**: ${game.description}`
+                                            },
+                                            {
+                                                type: 'image_url',
+                                                image_url: { url: iconBase64 }
+                                            },
+                                            {
+                                                type: 'image_url',
+                                                image_url: { url: thumbnailBase64 }
+                                            }
+                                        ]
+                                    }
+                                ],
+                                response_format: {
+                                    type: 'json_schema',
+                                    json_schema: {
+                                        name: 'gameplay_description',
+                                        strict: true,
+                                        schema: systemPromptData.schema
+                                    }
+                                }
+                            })
                         }
                     );
-
-                    const responseData = JSON.parse(response.content) as {
+                    const responseData = JSON.parse(
+                        (await response.json()).choices[0].message.content
+                    ) as {
                         gameplaySummary: string;
                         genreTags: string[];
                         gameFeatures: string[];

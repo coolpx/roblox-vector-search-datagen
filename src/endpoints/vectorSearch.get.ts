@@ -2,8 +2,8 @@ import path from 'path';
 import fs from 'fs';
 import { z } from 'zod';
 import { apiResponse, apiSuccessResponse } from '../lib/apiResponseSchema';
-import { cosineSimilarity, embeddingModel } from '../lib/tools';
-import { LMStudioClient } from '@lmstudio/sdk';
+import { cosineSimilarity } from '../lib/tools';
+import 'dotenv/config';
 
 const responseSchema = z.array(
     z.object({
@@ -103,10 +103,18 @@ const endpoint: ApiEndpointGet = {
             );
 
             // embed query
-            const client = new LMStudioClient();
-
-            const model = await client.embedding.model(embeddingModel);
-            const queryEmbedding = (await model.embed(query)).embedding;
+            const queryEmbeddingResponse = await fetch(process.env.EMBEDDING_BASE_URL!, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: process.env.EMBEDDING_MODEL,
+                    input: query
+                })
+            });
+            const queryEmbeddingData = await queryEmbeddingResponse.json();
+            const queryEmbedding = queryEmbeddingData.data[0].embedding;
 
             // load games data
             const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');

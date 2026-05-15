@@ -1,10 +1,6 @@
 // Shared tools extracted from interactive.ts
 import fs from 'fs';
 
-export const descriptionModel = 'google/gemma-4-e2b';
-export const embeddingModel = 'unsloth/embeddinggemma-300m-GGUF';
-export const gameplayDescriptionConcurrency = 2;
-
 export async function loadSystemPrompt(
     name: 'gameplayAnalysis' | 'localAnalysis',
     fileExtension: 'json' | 'txt' = 'txt'
