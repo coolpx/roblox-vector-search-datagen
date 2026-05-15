@@ -3,6 +3,7 @@ import path from 'path';
 
 export async function downloadImages() {
     // Download icon and primary thumbnail for each game
+	console.log("Checking for missing images");
     const gamesPath = path.join(process.cwd(), 'data', 'games', 'games.json');
     if (!fs.existsSync(gamesPath)) {
         console.error('games.json not found. Run gatherGames first.');
@@ -55,6 +56,7 @@ export async function downloadImages() {
         const iconPath = path.join(imageDir, 'icon.webp');
         return !fs.existsSync(iconPath);
     });
+	console.log(`Found ${gamesMissingIcon.length} games missing icons`);
     for (let i = 0; i < gamesMissingIcon.length; i += batchSize) {
         const batch = gamesMissingIcon.slice(i, i + batchSize);
         const batchUniverseIds = batch.map(g => g.universeId);
@@ -139,6 +141,7 @@ export async function downloadImages() {
         const thumbPath = path.join(imageDir, 'thumbnail.webp');
         return !fs.existsSync(thumbPath);
     });
+	console.log(`Found ${gamesMissingThumb.length} games missing thumbnails`);
     for (let i = 0; i < gamesMissingThumb.length; i += batchSize) {
         const batch = gamesMissingThumb.slice(i, i + batchSize);
         const batchUniverseIds = batch.map(g => g.universeId);
