@@ -52,38 +52,7 @@ Writes and merges into `data/games/games.json`. Existing fields such as descript
 
 Collects place IDs and names from `https://rolimons.com/games`.
 
-When `.env` or process env contains `ROBLOSECURITY` or `roblosecurity`, it fetches Roblox place details in batches of 10 from:
-
-```txt
-https://games.roblox.com/v1/games/multiget-place-details?placeIds=<id>&placeIds=<id>
-```
-
-Those requests include the cookie as:
-
-```txt
-Cookie: .ROBLOSECURITY=<value>
-```
-
-`.env` may also use `.ROBLOSECURITY=<value>`.
-
-Roblox returns one object per place with `placeId`, `universeId`, `name`, and `description`. Command uses that response to populate:
-
-- `universeId`
-- `rootPlaceId`
-- `name`
-- `description`
-
-Then it merges those entries into `data/games/games.json`, preserving unrelated existing fields.
-
-If Roblox returns `400 Bad Request` for a place-detail batch, command splits the batch to isolate failing place IDs. Single failing IDs fall back to the unauthenticated universe lookup, so the run can continue even when descriptions are unavailable for some places.
-
-If no cookie exists, `multiget-place-details` is skipped because it requires authentication. Command falls back to the old unauthenticated endpoint:
-
-```txt
-https://apis.roblox.com/universes/v1/places/<placeId>/universe
-```
-
-Fallback mode populates `universeId`, `rootPlaceId`, and Rolimons `name`, but cannot add descriptions.
+When `.env` or process env contains `ROBLOSECURITY`, it uses a Roblox API that requires authentication to fetch universe IDs in batches. If no cookie is provided it will still work, albeit much more slowly.
 
 ### `downloadImages`
 
