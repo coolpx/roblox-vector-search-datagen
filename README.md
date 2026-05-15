@@ -4,7 +4,7 @@ Data gathering and processing tools for Roblox vector search. Commands collect g
 
 Web UI source: https://github.com/coolpx/roblox-vector-search-webui/
 
-Demo: https://roblox-vector-search.coolpixels.net/
+Demo: https://coolpixels.net/roblox-vector-search
 
 ## Setup
 
