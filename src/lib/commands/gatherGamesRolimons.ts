@@ -1,12 +1,12 @@
 import fs from 'fs';
 import path from 'path';
-import { getRoblosecurityCookie } from './env';
 import { type RobloxPlaceDetail } from './roblox';
+import 'dotenv/config';
 
 export async function gatherGamesRolimons() {
     console.log('Gathering games from Rolimons...');
-    const roblosecurityCookie = getRoblosecurityCookie();
-    if (roblosecurityCookie) {
+    const roblosecurity = process.env.ROBLOSECURITY;
+    if (roblosecurity) {
         console.log('Loaded ROBLOSECURITY cookie for Roblox place detail requests.');
     } else {
         console.warn(
@@ -73,8 +73,7 @@ export async function gatherGamesRolimons() {
         return universeData.universeId;
     }
 
-    if (roblosecurityCookie) {
-        const placeDetailsCookie = roblosecurityCookie;
+    if (roblosecurity) {
         const batchSize = 50;
         console.log(`Gathering Roblox place details in batches of ${batchSize}...`);
 
@@ -89,7 +88,7 @@ export async function gatherGamesRolimons() {
                 try {
                     placeDetailsResponse = await fetch(url, {
                         headers: {
-                            Cookie: placeDetailsCookie
+                            Cookie: `.ROBLOSECURITY=${roblosecurity!}`
                         }
                     });
                     if (placeDetailsResponse.status === 429) {

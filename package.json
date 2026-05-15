@@ -23,6 +23,7 @@
         "@types/better-sqlite3": "^7.6.13",
         "@types/node": "^24.0.10",
         "better-sqlite3": "^12.2.0",
+        "dotenv": "^17.4.2",
         "express": "^5.1.0",
         "openai": "^5.8.2",
         "swagger-ui-express": "^5.0.1",
