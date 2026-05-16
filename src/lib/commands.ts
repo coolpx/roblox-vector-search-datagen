@@ -10,6 +10,7 @@ import { search } from './commands/search';
 import { clearGameplayDescriptions } from './commands/clearGameplayDescriptions';
 import { generateGameplayDescriptions } from './commands/generateGameplayDescriptions';
 import { generateEmbeddings } from './commands/generateEmbeddings';
+import { processGamesFromSearch } from './commands/processGamesFromSearch';
 
 export const commands = {
     gatherGames,
@@ -23,5 +24,6 @@ export const commands = {
     search,
     clearGameplayDescriptions,
     generateGameplayDescriptions,
-    generateEmbeddings
+    generateEmbeddings,
+    processGamesFromSearch
 };
