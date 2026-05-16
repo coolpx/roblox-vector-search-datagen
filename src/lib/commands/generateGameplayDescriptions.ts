@@ -136,7 +136,8 @@ export async function generateGameplayDescriptions() {
                                         strict: true,
                                         schema: systemPromptData.schema
                                     }
-                                }
+                                },
+                                ...JSON.parse(process.env.DESCRIPTION_EXTRA_BODY || '{}')
                             })
                         }
                     );
