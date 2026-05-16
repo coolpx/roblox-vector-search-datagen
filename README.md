@@ -56,6 +56,12 @@ Collects place IDs and names from `https://rolimons.com/games`.
 
 When the environment contains `ROBLOSECURITY`, it uses a Roblox API that requires authentication to fetch universe IDs in batches. If no cookie is provided it will still work, albeit much more slowly.
 
+### `gatherGamesFromSearch <query>`
+
+Collects the first page of Roblox game search results from `apis.roblox.com/search-api/omni-search`.
+
+Writes and merges into `data/games/games.json`. Search descriptions are ignored because Roblox currently returns empty descriptions for these results.
+
 ### `downloadImages`
 
 Downloads icons and thumbnails for games in `data/games/games.json`.

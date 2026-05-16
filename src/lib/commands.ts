@@ -1,4 +1,5 @@
 import { gatherGames } from './commands/gatherGames';
+import { gatherGamesFromSearch } from './commands/gatherGamesFromSearch';
 import { gatherGamesRolimons } from './commands/gatherGamesRolimons';
 import { downloadImages } from './commands/downloadImages';
 import { downloadDescriptions } from './commands/downloadDescriptions';
@@ -12,6 +13,7 @@ import { generateEmbeddings } from './commands/generateEmbeddings';
 
 export const commands = {
     gatherGames,
+    gatherGamesFromSearch,
     gatherGamesRolimons,
     downloadImages,
     downloadDescriptions,
@@ -21,5 +23,5 @@ export const commands = {
     search,
     clearGameplayDescriptions,
     generateGameplayDescriptions,
-    generateEmbeddings,
+    generateEmbeddings
 };
