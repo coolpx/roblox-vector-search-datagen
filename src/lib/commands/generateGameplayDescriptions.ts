@@ -50,11 +50,11 @@ export async function generateGameplayDescriptions() {
     for (
         let batchStart = 0;
         batchStart < gamesMissingGameplayDescriptions.length;
-        batchStart += parseInt(process.env.GAMEPLAY_DESCRIPTION_CONCURRENCY || '1')
+        batchStart += parseInt(process.env.DESCRIPTION_CONCURRENCY || '1')
     ) {
         const batch = gamesMissingGameplayDescriptions.slice(
             batchStart,
-            batchStart + parseInt(process.env.GAMEPLAY_DESCRIPTION_CONCURRENCY || '1')
+            batchStart + parseInt(process.env.DESCRIPTION_CONCURRENCY || '1')
         );
 
         await Promise.all(
@@ -101,7 +101,8 @@ export async function generateGameplayDescriptions() {
                         {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${process.env.DESCRIPTION_API_KEY!}`
                             },
                             body: JSON.stringify({
                                 model: process.env.DESCRIPTION_MODEL!,
@@ -139,8 +140,10 @@ export async function generateGameplayDescriptions() {
                             })
                         }
                     );
-                    const responseData = JSON.parse(
-                        (await response.json()).choices[0].message.content
+                    const responseData = await response.json();
+                    console.log(responseData);
+                    const generatedDetails = JSON.parse(
+                        responseData.choices[0].message.content
                     ) as {
                         gameplaySummary: string;
                         genreTags: string[];
@@ -149,9 +152,9 @@ export async function generateGameplayDescriptions() {
                     };
 
                     const gameplayDescription =
-                        `**Gameplay Summary**: ${responseData.gameplaySummary}\n\n` +
-                        `**Genre Tags**: ${responseData.genreTags.join(', ')}\n\n` +
-                        `**Game Features**: ${responseData.gameFeatures.join(', ')}\n\n`;
+                        `**Gameplay Summary**: ${generatedDetails.gameplaySummary}\n\n` +
+                        `**Genre Tags**: ${generatedDetails.genreTags.join(', ')}\n\n` +
+                        `**Game Features**: ${generatedDetails.gameFeatures.join(', ')}\n\n`;
 
                     game.gameplayDescription = gameplayDescription;
                     console.log(

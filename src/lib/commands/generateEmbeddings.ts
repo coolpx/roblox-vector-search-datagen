@@ -58,16 +58,20 @@ export async function generateEmbeddings() {
         );
         try {
             const descriptions = batch.map(game => game.gameplayDescription!);
-            const embeddingsResponse = await fetch(process.env.EMBEDDING_BASE_URL! + "/embeddings", {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					model: process.env.EMBEDDING_MODEL,
-					input: descriptions,
-				}),
-			});
+            const embeddingsResponse = await fetch(
+                process.env.EMBEDDING_BASE_URL! + '/embeddings',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${process.env.EMBEDDING_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: process.env.EMBEDDING_MODEL,
+                        input: descriptions
+                    })
+                }
+            );
             const embeddingsData = await embeddingsResponse.json();
             const embeddings = embeddingsData.data;
             for (let j = 0; j < batch.length; j++) {
