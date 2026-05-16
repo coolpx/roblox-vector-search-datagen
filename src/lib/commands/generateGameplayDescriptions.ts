@@ -142,6 +142,13 @@ export async function generateGameplayDescriptions() {
                         }
                     );
                     const responseData = await response.json();
+                    if (!response.ok) {
+                        console.error(
+                            `[${i + 1}/${gamesMissingGameplayDescriptions.length}] API error for game: ${game.name}`,
+                            responseData
+                        );
+                        return;
+                    }
                     const generatedDetails = JSON.parse(
                         responseData.choices[0].message.content
                     ) as {
