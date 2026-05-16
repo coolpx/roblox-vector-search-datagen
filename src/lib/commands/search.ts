@@ -55,7 +55,7 @@ export async function search() {
     const games: Game[] = JSON.parse(fs.readFileSync(gamesPath, 'utf-8'));
     const gameMap = new Map(games.map(game => [game.universeId, game]));
 
-    const queryEmbeddingResponse = await fetch(process.env.EMBEDDING_BASE_URL!, {
+    const queryEmbeddingResponse = await fetch(process.env.EMBEDDING_BASE_URL! + '/embeddings', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

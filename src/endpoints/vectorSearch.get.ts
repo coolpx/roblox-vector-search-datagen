@@ -103,16 +103,19 @@ const endpoint: ApiEndpointGet = {
             );
 
             // embed query
-            const queryEmbeddingResponse = await fetch(process.env.EMBEDDING_BASE_URL!, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: process.env.EMBEDDING_MODEL,
-                    input: query
-                })
-            });
+            const queryEmbeddingResponse = await fetch(
+                process.env.EMBEDDING_BASE_URL! + '/embeddings',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: process.env.EMBEDDING_MODEL,
+                        input: query
+                    })
+                }
+            );
             const queryEmbeddingData = await queryEmbeddingResponse.json();
             const queryEmbedding = queryEmbeddingData.data[0].embedding;
 
