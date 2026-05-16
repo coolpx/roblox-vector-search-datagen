@@ -12,7 +12,7 @@ async function main() {
         process.exit(1);
     }
     if (!(cmd in commands)) {
-        console.error(`Command "${cmd}" is not implemented.`);
+        console.error(`Command "${cmd}" does not exist.`);
         process.exit(1);
     }
     const command = cmd as keyof typeof commands;
