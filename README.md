@@ -9,8 +9,8 @@ Demo: https://coolpixels.net/roblox-vector-search
 ## Setup
 
 ```sh
-pnpm install
-pnpm run build
+npm install
+npm run build
 ```
 
 Run commands with:
@@ -22,13 +22,13 @@ node . <command>
 Interactive command runner:
 
 ```sh
-pnpm run interactive
+npm run interactive
 ```
 
 API server:
 
 ```sh
-pnpm run api
+npm run api
 ```
 
 ## Environment Configuration
@@ -108,4 +108,4 @@ Writes `data/games/embeddings.json`.
 
 ## Build Notes
 
-`pnpm run build` runs TypeScript compilation and regenerates Swagger docs.
+`npm run build` runs TypeScript compilation and regenerates Swagger docs.

@@ -67,7 +67,10 @@ const endpoint: ApiEndpointGet = {
     handle: async (req, res) => {
         try {
             // get universe ID from path params
-            const universeId = parseInt(req.params.universeId, 10);
+            const universeId = parseInt(
+                typeof req.params.universeId === 'string' ? req.params.universeId : '',
+                10
+            );
             if (isNaN(universeId)) {
                 return {
                     success: false,

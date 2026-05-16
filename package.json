@@ -10,15 +10,15 @@
         "gen-docs": "ts-node scripts/generate-swagger.ts"
     },
     "devDependencies": {
+        "@types/better-sqlite3": "^7.6.13",
         "@types/express": "^5.0.3",
+        "@types/node": "^25.8.0",
         "@types/swagger-ui-express": "^4.1.8",
         "prettier": "^3.6.2",
         "ts-node": "^10.9.2",
         "typescript": "^5.0.0"
     },
     "dependencies": {
-        "@types/better-sqlite3": "^7.6.13",
-        "@types/node": "^24.0.10",
         "better-sqlite3": "^12.2.0",
         "dotenv": "^17.4.2",
         "express": "^5.1.0",

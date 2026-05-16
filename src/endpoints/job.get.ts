@@ -48,7 +48,7 @@ const endpoint: ApiEndpointGet = {
     response: apiResponse(responseSchema),
     handle: async (req, res) => {
         try {
-            const jobId = req.params?.id;
+            const jobId = typeof req.params.id === 'string' ? req.params.id : '';
             if (!jobId) {
                 return {
                     success: false,
