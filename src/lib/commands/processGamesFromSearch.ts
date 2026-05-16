@@ -5,13 +5,9 @@ let lastTimestamp = start;
 
 async function logCheckpoint(message: string) {
     const timestamp = Date.now();
-    const elapsed = Math.round(timestamp - start)
-        .toString()
-        .padStart(5, ' ');
-    const elapsedSinceLast = Math.round(timestamp - lastTimestamp)
-        .toString()
-        .padStart(5, ' ');
-    console.log(`\x1b[34m[${elapsed}ms task/${elapsedSinceLast}ms total] ${message}\x1b[0m`);
+    const elapsed = Math.round(timestamp - start);
+    const elapsedSinceLast = Math.round(timestamp - lastTimestamp);
+    console.log(`\x1b[34m[${elapsedSinceLast}ms task / ${elapsed}ms total] ${message}\x1b[0m`);
     lastTimestamp = timestamp;
 }
 
