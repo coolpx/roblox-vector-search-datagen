@@ -148,7 +148,6 @@ export async function generateGameplayDescriptions() {
                         gameplaySummary: string;
                         genreTags: string[];
                         gameFeatures: string[];
-                        confidenceScore: number;
                     };
 
                     const gameplayDescription =
