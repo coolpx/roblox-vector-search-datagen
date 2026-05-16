@@ -141,7 +141,6 @@ export async function generateGameplayDescriptions() {
                         }
                     );
                     const responseData = await response.json();
-                    console.log(responseData);
                     const generatedDetails = JSON.parse(
                         responseData.choices[0].message.content
                     ) as {
