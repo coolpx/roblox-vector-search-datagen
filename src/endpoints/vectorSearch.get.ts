@@ -108,7 +108,8 @@ const endpoint: ApiEndpointGet = {
                 {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${process.env.EMBEDDING_API_KEY}`
                     },
                     body: JSON.stringify({
                         model: process.env.EMBEDDING_MODEL,
